@@ -1,3 +1,4 @@
+import torch
 def model_forward(self, embeds, lstart=0, lsplit=None, key='layer'):
     """
     Forward pass through Qwen3 model layers with linearization for Jacobian analysis
