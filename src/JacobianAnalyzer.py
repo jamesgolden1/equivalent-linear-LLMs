@@ -958,9 +958,9 @@ class JacobianAnalyzer:
 
         # Set default title if none provided
         if mode == 'singular_vectors':
-            title = title or f'Model: ' +self.model_name.split('/')[1:] +'\nInput seq: "' +self.last_input_text+' [[' +self.output_token+ ']]"\nSVD of Jacobian for "{self.last_input_text}"'
+            title = title or f'Model: ' +self.model_name +'\nInput seq: "' +self.last_input_text+' [[' +self.output_token+ ']]"\nSVD of Jacobian for "{self.last_input_text}"'
         elif mode == "row_col_vectors":
-            title = title or f'Model: ' +self.model_name.split('/')[1:] +'\nInput seq: "' +self.last_input_text+' [[' +self.output_token+ ']]"\nColumn Norms of Jacobian for  "{self.last_input_text}"'
+            title = title or f'Model: ' +self.model_name +'\nInput seq: "' +self.last_input_text+' [[' +self.output_token+ ']]"\nColumn Norms of Jacobian for  "{self.last_input_text}"'
 
         ax.set_title(title, fontsize=14)
 
