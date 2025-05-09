@@ -553,7 +553,7 @@ class JacobianAnalyzer:
                 decoded_tokens = [self.tokenizer.decode(idx).replace('\n', '').replace(' ', '') for idx in top_token_indices]
                 dec_usvec = ' '.join(decoded_tokens)
 
-                print(f"Token {tkind}, SV {ii}: {dec_usvec}")
+                print(f"Token {tkind}, U SV {ii}: {dec_usvec}")
                 usvec.append(dec_usvec)
 
                 if not tokens_combined:
@@ -563,7 +563,7 @@ class JacobianAnalyzer:
                     #     dec_vsvec = [self.tokenizer.convert_tokens_to_string([token.half()]) for token in self.find_nearest_token_batched(vvec, top_k=8)]
                     # else:
                     dec_vsvec = [self.tokenizer.convert_tokens_to_string([token]) for token in self.find_nearest_token_batched(vvec, top_k=8)]
-                    print(f"Token {tkind}, SV {ii}: {dec_vsvec}\n")
+                    print(f"Token {tkind}, V SV {ii}: {dec_vsvec}\n")
                     vsvec.append(dec_vsvec)
                 else:
                     vsvec.append([""])
@@ -729,13 +729,14 @@ class JacobianAnalyzer:
             token_list = [0]
 
         for layeri in layerlist:
-            print("Layer", layeri)
             if layer_mode == 'cumulative':
+                print(key, "layer", layeri)
                 self.jacobian_layers[key].append(self.compute_jacobian_layer_i(i=layeri, key=key).detach().cpu())
                 self.compute_jacobian_svd(layers=True, n_components=n_components, svs=svs,
                                         tokens_combined=tokens_combined, token_list=token_list,
                                         li=layeri, key=key)
             else:
+                print(key, "layer", layeri, "layerwise")
                 self.jacobian_layers_layerwise[key].append(self.compute_jacobian_layerwise_i(i=layeri, key=key).detach().cpu())
                 self.compute_jacobian_svd(layerwise=True, n_components=n_components, svs=svs,
                                         tokens_combined=tokens_combined, token_list=token_list,
@@ -797,6 +798,7 @@ class JacobianAnalyzer:
         ax.set_xlim([-limv, limv])
         ax.set_ylim([-limv, limv])
         ax.grid()
+        plt.show()
 
         # Save figure if filename provided
         if filename_png is not None:
@@ -872,6 +874,7 @@ class JacobianAnalyzer:
         # Add axis labels to main plot
         ax.set_xlabel("Hidden Dimension")
         ax.set_ylabel("Output Dimension")
+        plt.show()
 
         # Save figure if filename provided
         if filename_png is not None:
@@ -1048,6 +1051,7 @@ class JacobianAnalyzer:
 
         # Improve layout
         plt.tight_layout()
+        plt.show()
 
         # Save figures if filenames provided
         if filename_png is not None:
@@ -1155,6 +1159,7 @@ class JacobianAnalyzer:
 
         # Add legend explaining the three different lines
         plt.legend(["Layer Output (with residual)", "Attention Output (no residual)", "MLP Output (no residual)"])
+        plt.show()
 
         # Save figure if filename provided
         if filename_png is not None:
@@ -1233,6 +1238,7 @@ class JacobianAnalyzer:
         yl = self.usvec_layers['layer'][-1][1]
         plt.xlabel("Singular vector 0: \n" + str(xl))
         plt.ylabel("Singular vector 1: \n" + str(yl))
+        plt.show()
 
         # Save figure if filename provided
         if filename_png is not None:
