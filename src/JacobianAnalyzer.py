@@ -787,9 +787,9 @@ class JacobianAnalyzer:
         # Add title with error information
         relative_error = np.std(outnplinear) / np.std(linear_out_np)
         ax.set_title(
-            f'Llama 3.2 3B, Output vs. (Jacobian*Input)\n'
+            f'Model: ' +self.model_name +'\nInput+prediction: "'\n'
             f'relative error = {relative_error:1.2e}\n'
-            f'{text}',
+            f'Detached Jacobian Reconstruction Error'
             fontsize=12
         )
 
@@ -840,7 +840,7 @@ class JacobianAnalyzer:
 
         # Plot Jacobian matrix as a heatmap
         im = ax.imshow(jmat, vmin=-.03, vmax=.03, cmap='RdBu')
-        ax.set_title(f"Jacobian Matrix for Token {tkind}")
+        # ax.set_title(f"Jacobian Matrix for Token {tkind}")
 
         # Extract singular values for the specified token
         Sigma = self.sarr[tkind][:svs]
@@ -869,7 +869,7 @@ class JacobianAnalyzer:
                                   transform=ax.transAxes, zorder=2))
 
         # Add overall title
-        plt.suptitle(f"Jacobian Analysis for Token {tkind}", fontsize=14)
+        plt.suptitle(f'Model: ' +self.model_name +'\nInput+prediction: "' +self.last_input_text+' [[' +self.output_token+ ']]"\nThe Detached Jacobian Matrix (one for each input token)"')
 
         # Add axis labels to main plot
         ax.set_xlabel("Hidden Dimension")
