@@ -1,4 +1,4 @@
-#@title Model forward
+import torch 
 def model_forward(self, embeds, lstart=0, lsplit=None, key='layer'):
     """
     Forward pass through Phi3 model layers
