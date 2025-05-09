@@ -1,3 +1,4 @@
+import os 
 import gc
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
