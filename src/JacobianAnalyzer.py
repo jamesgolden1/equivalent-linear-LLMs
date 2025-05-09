@@ -293,6 +293,7 @@ class JacobianAnalyzer:
         """
         # Linear mode (eval)
         self.model.eval()
+
         self.jacobian = torch.autograd.functional.jacobian(
             self.model_forward,
             self.embeds,
@@ -310,6 +311,12 @@ class JacobianAnalyzer:
         self.linear_jacobian_output = torch.sum(self.jacobian_by_token, dim=0)
         self.linear_jacobian_output_error = self.linear_jacobian_output - self.outputs.hidden_states[-1][-1][0, -1]
 
+        # Confirm model_forward exactly matches outputs from generate
+        print("model_forward_error:", self.embeds_predicted - self.model_forward(self.embeds))
+        print("model_forward_error allclose:",torch.allclose(self.embeds_predicted,self.model_forward(self.embeds)))
+	print("detached Jacobian error:", self.linear_jacobian_output_error)
+	print("detached Jacobian all close:",torch.allclose(self.linear_jacobian_output, self.embeds_predicted))
+		
         return self.linear_jacobian_output
 
     def compute_jacobian_nonlinear(self):
