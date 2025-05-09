@@ -100,7 +100,7 @@ class JacobianAnalyzer:
             self.quantization_config = BitsAndBytesConfig(load_in_4bit=True)
             self.model = AutoModelForCausalLM.from_pretrained(
                 self.model_name,
-                token="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",
+                token=os.environ["HF_TOKEN"],
                 quantization_config=self.quantization_config)
         else:
             self.model = AutoModelForCausalLM.from_pretrained(
