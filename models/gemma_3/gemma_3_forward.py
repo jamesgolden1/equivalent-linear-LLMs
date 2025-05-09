@@ -104,7 +104,7 @@ def model_forward(self, embeds, lstart=0, lsplit=None, key='layer'):
         hidden_states = residual + hidden_states
 
     # Apply final normalization if we processed all layers
-    if key != not "layer_input" and li == lsplit - 1:
+    if key != "layer_input" and li == lsplit - 1:
         hidden_states = self.model.model.norm(hidden_states)
     # # Apply final normalization
     # if li == len(self.model.model.layers) - 1:
