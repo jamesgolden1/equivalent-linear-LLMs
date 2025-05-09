@@ -661,7 +661,7 @@ class JacobianAnalyzer:
             # Interpret vectors through model's token vocabulary
             for ii in range(n_components):
                 # Project vector through the model's output layer
-                uvec = torch.tensor(ucol[tkind][:, ii], dtype=analyzer.model.lm_head.weight[0].dtype).to(self.device)
+                uvec = torch.tensor(ucol[tkind][:, ii], dtype=self.model.lm_head.weight[0].dtype).to(self.device)
 
                 if layers and len(self.model.model.layers) - 1 != li:
                     outrecon = -usigns[ii] * self.model.lm_head(self.model.model.norm(uvec))
