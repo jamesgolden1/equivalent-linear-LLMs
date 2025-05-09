@@ -1093,7 +1093,7 @@ class JacobianAnalyzer:
 
         # Set appropriate title based on analysis type
         title_mode = "layerwise" if layerwise else "cumulative"
-        plt.title(f'Model: ' +self.model_name.split('/')[1:] +'\nInput seq: "' +self.last_input_text+' [[' +self.output_token+ ']]"\nPseudo-Jacobian Layer Matrix Rank as a function of layer depth, {title_mode}')
+        plt.title(f'Model: ' +self.model_name +'\nInput seq: "' +self.last_input_text+' [[' +self.output_token+ ']]"\nPseudo-Jacobian Layer Matrix Rank as a function of layer depth, {title_mode}')
 
         # Calculate dimensionality for 'attention' output
         if layerwise:
@@ -1143,9 +1143,9 @@ class JacobianAnalyzer:
         # Set title based on analysis type
         if layerwise:
         # Add title and labels        
-            plt.title('Model: ' +self.model_name.split('/')[1:] +'\nInput seq: "' +self.last_input_text+' [[' +self.output_token+ ']]"\nLayerwise Detached Jacobian Layer Matrix Rank as a function of layer depth')
+            plt.title('Model: ' +self.model_name +'\nInput seq: "' +self.last_input_text+' [[' +self.output_token+ ']]"\nLayerwise Detached Jacobian Layer Matrix Rank as a function of layer depth')
         else:
-            plt.title('Model: ' +self.model_name.split('/')[1:] +'\nInput seq: "' +self.last_input_text+' [[' +self.output_token+ ']]"\nCumulative Detached Jacobian Layer Matrix Rank as a function of layer depth')
+            plt.title('Model: ' +self.model_name +'\nInput seq: "' +self.last_input_text+' [[' +self.output_token+ ']]"\nCumulative Detached Jacobian Layer Matrix Rank as a function of layer depth')
 
         # Add legend explaining the three different lines
         plt.legend(["Layer Output (with residual)", "Attention Output (no residual)", "MLP Output (no residual)"])
@@ -1220,7 +1220,7 @@ class JacobianAnalyzer:
         plt.grid()
 
         # Add title and labels
-        plt.title('Model: ' +self.model_name.split('/')[1:] +'\nInput seq: "The bridge out of Marin is the [[' +self.output_token+ ']]"\nProjection of layer Jacobian singular vectors')
+        plt.title('Model: ' +self.model_name +'\nInput seq: "The bridge out of Marin is the [[' +self.output_token+ ']]"\nProjection of layer Jacobian singular vectors')
 
         # Example labels - these should be updated based on the actual analysis
         xl = self.usvec_layers['layer'][-1][0]
