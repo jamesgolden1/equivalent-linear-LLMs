@@ -162,7 +162,7 @@ class JacobianAnalyzer:
             temperature=temperature
         )
 
-        self.output_token = self.tokenizer.decode(self.outputs['sequences'][-1])
+        self.output_token = self.tokenizer.decode(self.outputs['sequences'][-1][-1])
         # print("[", [self.tokenizer.decode(self.outputs['sequences'][ii]) for ii in range(len(self.outputs['sequences']))], "]")
 
         # Store the embedding for jacobian calculation
@@ -966,13 +966,13 @@ class JacobianAnalyzer:
 
         # Set default title if none provided
         if mode == 'singular_vectors':
-            title = title or f'Model: ' +self.model_name +'\nInput seq: "' +self.last_input_text+' [[' +self.output_token+ ']]"\nSVD of Jacobian for "{self.last_input_text}"'
+            title = title or f'Model: ' +self.model_name +'\nInput+prediction: "' +self.last_input_text+' [[' +self.output_token+ ']]"\nSVD of the Detached Jacobian"'
         elif mode == 'singular_vectors_layers':
-            title = title or f'Model: ' +self.model_name +'\nInput seq: "' +self.last_input_text+' [[' +self.output_token+ ']]"\nSVD of Cumulative Jacobian up to ' +key+ ' module\nfor "{self.last_input_text}"'
+            title = title or f'Model: ' +self.model_name +'\nInput+prediction: "' +self.last_input_text+' [[' +self.output_token+ ']]"\nSVD of Cumulative Detached Jacobian up to ' +key.upper()+ ' module'
         elif mode == 'singular_vectors_layers_layerwise':
-            title = title or f'Model: ' +self.model_name +'\nInput seq: "' +self.last_input_text+' [[' +self.output_token+ ']]"\nSVD of Layerwise Jacobian for ' +key+ ' module\nfor "{self.last_input_text}"'
+            title = title or f'Model: ' +self.model_name +'\nInput+prediction: "' +self.last_input_text+' [[' +self.output_token+ ']]"\nSVD of Layerwise Detached Jacobian for ' +key.upper()+ ' module"'
         elif mode == "row_col_vectors":
-            title = title or f'Model: ' +self.model_name +'\nInput seq: "' +self.last_input_text+' [[' +self.output_token+ ']]"\nColumn Norms of Jacobian for  "{self.last_input_text}"'
+            title = title or f'Model: ' +self.model_name +'\nInput+prediction: "' +self.last_input_text+' [[' +self.output_token+ ']]"\nColumn Norms of Detached Jacobian'
 
         ax.set_title(title, fontsize=14)
 
@@ -1097,12 +1097,6 @@ class JacobianAnalyzer:
             ])
             plt.plot(self.layerlist, layer_dim, '-x')
 
-        # Add grid and labels
-        plt.grid()
-        plt.xlabel("Layer index")
-        plt.ylabel("Dimensionality (stable rank)")
-        plt.legend([f"Token {tkind}"])
-
         # Set appropriate title based on analysis type
         title_mode = "layerwise" if layerwise else "cumulative"
         plt.title(f'Model: ' +self.model_name +'\nInput seq: "' +self.last_input_text+' [[' +self.output_token+ ']]"\nPseudo-Jacobian Layer Matrix Rank as a function of layer depth, {title_mode}')
@@ -1155,9 +1149,9 @@ class JacobianAnalyzer:
         # Set title based on analysis type
         if layerwise:
         # Add title and labels        
-            plt.title('Model: ' +self.model_name +'\nInput seq: "' +self.last_input_text+' [[' +self.output_token+ ']]"\nLayerwise Detached Jacobian Layer Matrix Rank as a function of layer depth')
+            plt.title('Model: ' +self.model_name +'\nInput+prediction: "' +self.last_input_text+' [[' +self.output_token+ ']]"\nLayerwise Detached Jacobian Layer Matrix Rank as a function of layer depth')
         else:
-            plt.title('Model: ' +self.model_name +'\nInput seq: "' +self.last_input_text+' [[' +self.output_token+ ']]"\nCumulative Detached Jacobian Layer Matrix Rank as a function of layer depth')
+            plt.title('Model: ' +self.model_name +'\nInput+prediction: "' +self.last_input_text+' [[' +self.output_token+ ']]"\nCumulative Detached Jacobian Layer Matrix Rank as a function of layer depth')
 
         # Add legend explaining the three different lines
         plt.legend(["Layer Output (with residual)", "Attention Output (no residual)", "MLP Output (no residual)"])
