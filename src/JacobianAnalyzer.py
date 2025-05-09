@@ -967,6 +967,10 @@ class JacobianAnalyzer:
         # Set default title if none provided
         if mode == 'singular_vectors':
             title = title or f'Model: ' +self.model_name +'\nInput seq: "' +self.last_input_text+' [[' +self.output_token+ ']]"\nSVD of Jacobian for "{self.last_input_text}"'
+        elif mode == 'singular_vectors_layers':
+            title = title or f'Model: ' +self.model_name +'\nInput seq: "' +self.last_input_text+' [[' +self.output_token+ ']]"\nSVD of Cumulative Jacobian up to ' +key+ ' module\nfor "{self.last_input_text}"'
+        elif mode == 'singular_vectors_layers_layerwise':
+            title = title or f'Model: ' +self.model_name +'\nInput seq: "' +self.last_input_text+' [[' +self.output_token+ ']]"\nSVD of Layerwise Jacobian for ' +key+ ' module\nfor "{self.last_input_text}"'
         elif mode == "row_col_vectors":
             title = title or f'Model: ' +self.model_name +'\nInput seq: "' +self.last_input_text+' [[' +self.output_token+ ']]"\nColumn Norms of Jacobian for  "{self.last_input_text}"'
 
