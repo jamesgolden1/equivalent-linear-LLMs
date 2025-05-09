@@ -787,8 +787,8 @@ class JacobianAnalyzer:
         # Add title with error information
         relative_error = np.std(outnplinear) / np.std(linear_out_np)
         ax.set_title(
-            f'Model: {self.model_name}'
-            f'{text} [[{self.output_token}]]'
+            f'Model: {self.model_name}\n'
+            f'{text} [[{self.output_token}]]\n'
             f'Detached Jacobian Reconstruction Error = {relative_error:1.2e}'
         )
 
