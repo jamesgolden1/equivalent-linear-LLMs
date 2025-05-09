@@ -314,8 +314,8 @@ class JacobianAnalyzer:
         # Confirm model_forward exactly matches outputs from generate
         print("model_forward_error:", self.embeds_predicted - self.model_forward(self.embeds))
         print("model_forward_error allclose:",torch.allclose(self.embeds_predicted,self.model_forward(self.embeds)))
-	print("detached Jacobian error:", self.linear_jacobian_output_error)
-	print("detached Jacobian all close:",torch.allclose(self.linear_jacobian_output, self.embeds_predicted))
+        print("detached Jacobian error:", self.linear_jacobian_output_error)
+        print("detached Jacobian all close:",torch.allclose(self.linear_jacobian_output, self.embeds_predicted))
 		
         return self.linear_jacobian_output
 
