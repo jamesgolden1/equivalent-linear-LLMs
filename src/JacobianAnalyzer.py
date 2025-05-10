@@ -1,7 +1,7 @@
 import os 
 import gc
 import torch
-from transformers import AutoTokenizer, BitsAndBytesConfig
+from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 import matplotlib.pyplot as plt
 import numpy as np
 from functools import partial
@@ -97,20 +97,6 @@ class JacobianAnalyzer:
 
     def load_model(self):
         """Load and prepare the model for inference and gradient computation."""
-
-        # from transformers import AutoModelForCausalLM
-        if "gemma" in self.model_name:
-            from models.gemma3.modeling_gemma_locally_linear import Gemma3ForCausalLM as AutoModelForCausalLM
-        elif "qwen" in self.model_name:
-            from models.qwen3.modeling_qwen_locally_linear import Qwen3ForCausalLM as AutoModelForCausalLM
-        elif "phi" in self.model_name:
-            from models.phi4.modeling_phi_locally_linear import Phi3ForCausalLM as AutoModelForCausalLM
-        elif "mistral" in self.model_name:
-            from models.mistral_ministral.modeling_mistral_ministral_locally_linear import MistralForCausalLM as AutoModelForCausalLM
-        elif "olmo" in self.model_name:
-            from models.olmo.modeling_olmo_locally_linear import Olmo2ForCausalLM as AutoModelForCausalLM
-        else:
-            from models.llama_3.modeling_llama_locally_linear import LlamaForCausalLM as AutoModelForCausalLM
 
         if "bnb" in self.model_name:
             self.quantization_config = BitsAndBytesConfig(load_in_4bit=True)
@@ -759,11 +745,12 @@ class JacobianAnalyzer:
             gc.collect()
             torch.cuda.empty_cache()
 
-    def plot_jacobian_comparison(self, filename=None, filename_png=None):
+    def plot_jacobian_comparison(self, text=None, filename=None, filename_png=None):
         """
         Plot comparison of linear and nonlinear Jacobian outputs.
 
         Args:
+            text (str): Input text used for generation
             filename (str, optional): Path to save the output figure (.pdf and .svg)
             filename_png (str, optional): Path to save the output figure (.png)
 
