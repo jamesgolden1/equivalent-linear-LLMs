@@ -43,7 +43,7 @@ class JacobianAnalyzer:
         # Initialize storage containers for analysis results
         self._init_storage()
 
-    def self.copy_locally_linear_files(self):
+    def copy_locally_linear_files(self):
        import shutil
        import transformers
        transformers_file = transformers.__file__.split('__')[0]
