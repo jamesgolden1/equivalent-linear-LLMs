@@ -110,7 +110,7 @@ class JacobianAnalyzer:
         elif "olmo" in self.model_name:
             from models.olmo.modeling_olmo_locally_linear import Olmo2ForCausalLM as AutoModelForCausalLM
         else:
-            from models.llama3.modeling_llama_locally_linear import LlamaForCausalLM as AutoModelForCausalLM
+            from models.llama_3.modeling_llama_locally_linear import LlamaForCausalLM as AutoModelForCausalLM
 
         if "bnb" in self.model_name:
             self.quantization_config = BitsAndBytesConfig(load_in_4bit=True)
