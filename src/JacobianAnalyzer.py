@@ -20,7 +20,7 @@ class JacobianAnalyzer:
     visualization methods, and token interpretation features.
     """
 
-    def __init__(self, model_name="meta-llama/Llama-3.1-8B-Instruct", device="cuda"):
+    def __init__(self, model_name="meta-llama/Llama-3.1-8B-Instruct", device="cuda", dtype=torch.bfloat16):
         """
         Initialize the JacobianAnalyzer with a specified model.
 
@@ -35,12 +35,23 @@ class JacobianAnalyzer:
         # Initialize tokenizer
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         self.tokenizer.pad_token = self.tokenizer.eos_token
+        self.copy_locally_linear_files()
 
         # Load and prepare model
-        self.load_model()
+        self.load_model(dtype=dtype)
 
         # Initialize storage containers for analysis results
         self._init_storage()
+
+    def self.copy_locally_linear_files(self):
+       import shutil
+       import transformers
+       transformers_file = transformers.__file__.split('__')[0]
+       modeling_file_new = "models/llama_3/modeling_llama_locally_linear.py"
+       modeling_file = transformers_file+"models/llama/modeling_llama.py"
+       backup_file = transformers_file+"models/llama/modeling_llama_backup.py"
+       shutil.copy(modeling_file, backup_file)
+       shutil.copy(modeling_file_new, modeling_file) 
 
     def _init_storage(self):
         """Initialize all data storage containers."""
@@ -95,7 +106,7 @@ class JacobianAnalyzer:
         # Layer list for tracking
         self.layerlist = None
 
-    def load_model(self):
+    def load_model(self, dtype=torch.bfloat16):
         """Load and prepare the model for inference and gradient computation."""
 
         if "bnb" in self.model_name:
@@ -107,7 +118,7 @@ class JacobianAnalyzer:
         else:
             self.model = AutoModelForCausalLM.from_pretrained(
                 self.model_name,
-                torch_dtype=torch.bfloat16
+                torch_dtype=dtype
             )
             self.model.to(self.device)
 
@@ -314,9 +325,9 @@ class JacobianAnalyzer:
 
         # Confirm model_forward exactly matches outputs from generate
         print("model_forward_error:", self.embeds_predicted - self.model_forward(self.embeds))
-        print("model_forward_error allclose:",torch.allclose(self.embeds_predicted,self.model_forward(self.embeds)))
+        # print("model_forward_error allclose:",torch.allclose(self.embeds_predicted,self.model_forward(self.embeds)))
         print("detached Jacobian error:", self.linear_jacobian_output_error)
-        print("detached Jacobian all close:",torch.allclose(self.linear_jacobian_output, self.embeds_predicted))
+        # print("detached Jacobian all close:",torch.allclose(self.linear_jacobian_output, self.embeds_predicted))
 	
         return self.linear_jacobian_output
 
