@@ -92,7 +92,9 @@ class JacobianAnalyzer:
         modeling_file = transformers_file+"models/mistral/modeling_mistral.py"
         backup_file = transformers_file+"models/mistral/modeling_mistral_original.py"
         shutil.copy(modeling_file, backup_file)
-        shutil.copy(modeling_file_new, modeling_file)     def _init_storage(self):
+        shutil.copy(modeling_file_new, modeling_file)   
+  
+    def _init_storage(self):
         """Initialize all data storage containers."""
         # Jacobian output containers
         self.linear_jacobian_output = None
