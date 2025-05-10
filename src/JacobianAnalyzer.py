@@ -48,53 +48,51 @@ class JacobianAnalyzer:
         Copy the modeling_* files with locally linear models in eval mode(and original models in train mode) into the transformers library.
 
         """
-       import shutil
-       import transformers
-       transformers_file = transformers.__file__.split('__')[0]
+        import shutil
+        import transformers
+        transformers_file = transformers.__file__.split('__')[0]
 
-       # Llama 3.1
-       modeling_file_new = "models/llama_3/modeling_llama_locally_linear.py"
-       modeling_file = transformers_file+"models/llama/modeling_llama.py"
-       backup_file = transformers_file+"models/llama/modeling_llama_original.py"
-       shutil.copy(modeling_file, backup_file)
-       shutil.copy(modeling_file_new, modeling_file) 
+        # Llama 3.1
+        modeling_file_new = "models/llama_3/modeling_llama_locally_linear.py"
+        modeling_file = transformers_file+"models/llama/modeling_llama.py"
+        backup_file = transformers_file+"models/llama/modeling_llama_original.py"
+        shutil.copy(modeling_file, backup_file)
+        shutil.copy(modeling_file_new, modeling_file) 
 
-       # Gemma 3
-       modeling_file_new = "models/gemma_3/modeling_gemma_locally_linear.py"
-       modeling_file = transformers_file+"models/gemma3/modeling_gemma3.py"
-       backup_file = transformers_file+"models/gemma3/modeling_gemma3_original.py"
-       shutil.copy(modeling_file, backup_file)
-       shutil.copy(modeling_file_new, modeling_file) 
+        # Gemma 3
+        modeling_file_new = "models/gemma_3/modeling_gemma_locally_linear.py"
+        modeling_file = transformers_file+"models/gemma3/modeling_gemma3.py"
+        backup_file = transformers_file+"models/gemma3/modeling_gemma3_original.py"
+        shutil.copy(modeling_file, backup_file)
+        shutil.copy(modeling_file_new, modeling_file) 
 
-       # Qwen 3
-       modeling_file_new = "models/qwen_3/modeling_qwen3_locally_linear.py"
-       modeling_file = transformers_file+"models/qwen3/modeling_qwen3.py"
-       backup_file = transformers_file+"models/qwen3/modeling_qwen3_original.py"
-       shutil.copy(modeling_file, backup_file)
-       shutil.copy(modeling_file_new, modeling_file) 
+        # Qwen 3
+        modeling_file_new = "models/qwen_3/modeling_qwen3_locally_linear.py"
+        modeling_file = transformers_file+"models/qwen3/modeling_qwen3.py"
+        backup_file = transformers_file+"models/qwen3/modeling_qwen3_original.py"
+        shutil.copy(modeling_file, backup_file)
+        shutil.copy(modeling_file_new, modeling_file) 
 
-       # Phi 4 # Runs on phi 3 architecture
-       modeling_file_new = "models/phi_4/modeling_phi_locally_linear.py"
-       modeling_file = transformers_file+"models/phi3/modeling_phi3.py"
-       backup_file = transformers_file+"models/phi3/modeling_phi3_original"
-       shutil.copy(modeling_file, backup_file)
-       shutil.copy(modeling_file_new, modeling_file) 
+        # Phi 4 # Runs on phi 3 architecture
+        modeling_file_new = "models/phi_4/modeling_phi_locally_linear.py"
+        modeling_file = transformers_file+"models/phi3/modeling_phi3.py"
+        backup_file = transformers_file+"models/phi3/modeling_phi3_original"
+        shutil.copy(modeling_file, backup_file)
+        shutil.copy(modeling_file_new, modeling_file) 
 
-       # Olmo 2
-       modeling_file_new = "models/olmo_2/modeling_olmo_locally_linear.py"
-       modeling_file = transformers_file+"models/olmo2/modeling_ olmo2.py"
-       backup_file = transformers_file+"models/olmo2/modeling_olmo2_original.py"
-       shutil.copy(modeling_file, backup_file)
-       shutil.copy(modeling_file_new, modeling_file) 
+        # Olmo 2
+        modeling_file_new = "models/olmo_2/modeling_olmo_locally_linear.py"
+        modeling_file = transformers_file+"models/olmo2/modeling_ olmo2.py"
+        backup_file = transformers_file+"models/olmo2/modeling_olmo2_original.py"
+        shutil.copy(modeling_file, backup_file)
+        shutil.copy(modeling_file_new, modeling_file) 
 
-       # Mistral Ministral
-       modeling_file_new = "models/mistral/modeling_mistral_ministral_locally_linear.py"
-       modeling_file = transformers_file+"models/mistral/modeling_mistral.py"
-       backup_file = transformers_file+"models/mistral/modeling_mistral_original.py"
-       shutil.copy(modeling_file, backup_file)
-       shutil.copy(modeling_file_new, modeling_file) 
-
-    def _init_storage(self):
+        # Mistral Ministral
+        modeling_file_new = "models/mistral/modeling_mistral_ministral_locally_linear.py"
+        modeling_file = transformers_file+"models/mistral/modeling_mistral.py"
+        backup_file = transformers_file+"models/mistral/modeling_mistral_original.py"
+        shutil.copy(modeling_file, backup_file)
+        shutil.copy(modeling_file_new, modeling_file)     def _init_storage(self):
         """Initialize all data storage containers."""
         # Jacobian output containers
         self.linear_jacobian_output = None
