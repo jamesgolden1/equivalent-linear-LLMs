@@ -109,7 +109,7 @@ class JacobianAnalyzer:
             from models.mistral_ministral.modeling_mistral_ministral_locally_linear import MistralForCausalLM as AutoModelForCausalLM
         elif "olmo" in self.model_name:
             from models.olmo.modeling_olmo_locally_linear import Olmo2ForCausalLM as AutoModelForCausalLM
-        else "llama" in self.model_name:
+        else:
             from models.llama3.modeling_llama_locally_linear import LlamaForCausalLM as AutoModelForCausalLM
 
         if "bnb" in self.model_name:
@@ -759,12 +759,11 @@ class JacobianAnalyzer:
             gc.collect()
             torch.cuda.empty_cache()
 
-    def plot_jacobian_comparison(self, text, filename=None, filename_png=None):
+    def plot_jacobian_comparison(self, filename=None, filename_png=None):
         """
         Plot comparison of linear and nonlinear Jacobian outputs.
 
         Args:
-            text (str): Input text used for generation
             filename (str, optional): Path to save the output figure (.pdf and .svg)
             filename_png (str, optional): Path to save the output figure (.png)
 
@@ -803,7 +802,7 @@ class JacobianAnalyzer:
         relative_error = np.std(outnplinear) / np.std(linear_out_np)
         ax.set_title(
             f'Model: {self.model_name}\n'
-            f'{text} [[{self.output_token}]]\n'
+            f'{self.last_input_text} [[{self.output_token}]]\n'
             f'Detached Jacobian Reconstruction Error = {relative_error:1.2e}'
         )
 
