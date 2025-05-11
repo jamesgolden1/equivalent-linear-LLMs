@@ -9,9 +9,15 @@ Extending techniques from image diffusion models that exhibit local or piecewise
 
 This approach also allows us to examine the operation of each successive layer (and its components) as exact linear systems and to directly manipulate predictions. Despite their expressive power and global nonlinearity, modern LLMs can be interpreted through exact linear decompositions that reveal their internal representations and computational mechanisms.
 
-![alt text](https://github.com/jamesgolden1/llms-are-llms/blob/main/images/fig1-llama-detached-swiglu.png "Llama 3 Detached Jacobian Architecture")
+<p align="center">
+  <img src="http://some_place.com/image.png](https://github.com/jamesgolden1/llms-are-llms/blob/main/images/fig1-llama-detached-swiglu.png" />
+</p>
+
 Fig 1: The network components that are detached from the computational graph at inference to enable local linearity with respect to the input embedding vectors.
 
-![alt text](https://github.com/jamesgolden1/llms-are-llms/blob/main/images/fig3-jacobian-reconstruction.png "Llama 3.2 Detached Jacobian Reconstruction Error")
+<p align="center">
+  <img src="https://github.com/jamesgolden1/llms-are-llms/blob/main/images/fig3-jacobian-reconstruction.png" />
+</p>
+
 Fig 2: The reconstruction error of the Jacobian of the original network compared to the reconstruction error of the detached Jacobian of the network with a modified gradient at inference (which produces the same outputs as the original network).
 
