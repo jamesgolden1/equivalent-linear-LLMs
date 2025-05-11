@@ -834,7 +834,7 @@ class JacobianAnalyzer:
 
         # Add labels and legend
         ax.set_xlabel('Output Embedding')
-        ax.set_ylabel('\Sigma Jacobian_i * input_embedding_vector_i')
+        ax.set_ylabel('\$\Sigma_i=0^k\$ \$Jacobian_i\$ \$\cdot\$ input_embedding_\$vector_i\$')
         ax.legend(['Original Jacobian Reconstruction', 'Identity (locally linear)', 'Detached Jacobian Reconstruction'])
 
         # Add title with error information
