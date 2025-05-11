@@ -833,9 +833,9 @@ class JacobianAnalyzer:
         ax.scatter(xvalslin, linear_out_np, 6, 'r', marker='x')
 
         # Add labels and legend
-        plt.rc('text', usetex=True)
         ax.set_xlabel('Output Embedding')
-        ax.set_ylabel(r'$\sum\_{i=0}\^{k}$ $Jacobian\_i$ $\cdot$ input_embedding_$vector\_i$')
+        ax.set_ylabel('Sum (Jacobian_i·input_embedding_vector_i)')
+        # ax.set_ylabel(r'$\sum\_{i=0}\^{k}$ $Jacobian\_i$ $\cdot$ input_embedding_$vector\_i$')
         ax.legend(['Original Jacobian Reconstruction', 'Identity (locally linear)', 'Detached Jacobian Reconstruction'])
 
         # Add title with error information
