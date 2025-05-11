@@ -67,7 +67,7 @@ class JacobianAnalyzer:
         shutil.copy(modeling_file_new, modeling_file) 
 
         # Qwen 3
-        modeling_file_new = "models/qwen_3/modeling_qwen3_locally_linear.py"
+        modeling_file_new = "models/qwen_3/modeling_qwen_locally_linear.py"
         modeling_file = transformers_file+"models/qwen3/modeling_qwen3.py"
         backup_file = transformers_file+"models/qwen3/modeling_qwen3_original.py"
         shutil.copy(modeling_file, backup_file)
