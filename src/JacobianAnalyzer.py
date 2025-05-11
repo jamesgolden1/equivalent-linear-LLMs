@@ -220,7 +220,7 @@ class JacobianAnalyzer:
 
         # Store the embedding for jacobian calculation
         self.embeds = self.outputs.hidden_states[0][0].detach().requires_grad_(True)
-        self.embeds_predicted = self.outputs.hidden_states[-1][-1][0, -1]
+        self.embeds_predicted = self.outputs.hidden_states[-1][-1][0, -1].strip()
 
     def model_forward(self, embeds, lstart=0, lsplit=None, key='layer'):
         """
@@ -834,8 +834,8 @@ class JacobianAnalyzer:
 
         # Add labels and legend
         ax.set_xlabel('Output Embedding')
-        ax.set_ylabel('Jacobian * (input embedding matrices)')
-        ax.legend(['Original Jacobian', 'Identity (locally linear)', 'Detached Jacobian'])
+        ax.set_ylabel('\Sigma Jacobian_i * input_embedding_vector_i')
+        ax.legend(['Original Jacobian Reconstruction', 'Identity (locally linear)', 'Detached Jacobian Reconstruction'])
 
         # Add title with error information
         relative_error = np.std(outnplinear) / np.std(linear_out_np)	
