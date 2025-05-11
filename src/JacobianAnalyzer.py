@@ -215,12 +215,12 @@ class JacobianAnalyzer:
             temperature=temperature
         )
 
-        self.output_token = self.tokenizer.decode(self.outputs['sequences'][-1][-1])
+        self.output_token = self.tokenizer.decode(self.outputs['sequences'][-1][-1]).strip()
         # print("[", [self.tokenizer.decode(self.outputs['sequences'][ii]) for ii in range(len(self.outputs['sequences']))], "]")
 
         # Store the embedding for jacobian calculation
         self.embeds = self.outputs.hidden_states[0][0].detach().requires_grad_(True)
-        self.embeds_predicted = self.outputs.hidden_states[-1][-1][0, -1].strip()
+        self.embeds_predicted = self.outputs.hidden_states[-1][-1][0, -1]
 
     def model_forward(self, embeds, lstart=0, lsplit=None, key='layer'):
         """
