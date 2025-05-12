@@ -27,14 +27,15 @@ Fig 2: The reconstruction error of the Jacobian of the original network compared
 
 Fig 3: The right and left singular values of the Jacobian matrix corresponding to each input embedding vector can be decoded to tokens, demonstrating that the right singular vectors select for the input tokens (as expected), and the left singular vectors generate semantic concepts that appear in the decoded output.
 
-Mathematically, the Taylor expansion of a nonlinear function like the transformer mapping of input embedding vectors to a predicted output embedding vector is:
+The Taylor expansion of a nonlinear function like the transformer mapping of input embedding vectors **x** to a predicted output embedding vector **y** is:
 <p align="center">
   <img src="https://github.com/jamesgolden1/llms-are-llms/blob/main/images/jacobian_taylor.png" width=45%/>
 </p>
 
-By detaching the gradients of particular terms at inference with respect to the input embedding vectors, a linear path for the input is preserved through the transformer function such that the predicted output embedding is unchanged but the high order terms of the Taylor expansion are all exactly zero. In other words, the network's inference (and all of its subcomponents) are only dependent on the Jacobian and therefore locally linear for a particular inference sequence. The output can be nearly exactly reproduced by mutliplying the matrices of the detached Jacobian with the input embedding vectors. (The function is globally nonlinear, and the detached Jacobian must be computed numerically for each input sequence).
+By detaching the gradients of particular terms at inference with respect to the input embedding vectors, a linear path for the input is preserved through the transformer function such that the predicted output embedding is unchanged but the high order terms of the Taylor expansion are all exactly zero. In other words, the network's inference is dependent only on the Jacobian matrices and therefore locally linear for a particular inference sequence. The output can be nearly exactly reproduced by mutliplying the matrices of the detached Jacobian with the input embedding vectors. (The function is globally nonlinear, and the detached Jacobian must be computed numerically for each input sequence).
 
 <p align="center">
   <img src="https://github.com/jamesgolden1/llms-are-llms/blob/main/images/jacobian_detached.png" width=45%/>
 </p>
 
+This approach therefore finds an exact linear system that reproduces the transformer's operation for a given sequence, and allows for the numerical intpretation of the LLM as a locally linear model. 
