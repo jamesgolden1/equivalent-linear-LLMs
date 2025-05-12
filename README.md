@@ -10,31 +10,31 @@ Extending techniques from image diffusion models that exhibit local or piecewise
 This approach also allows us to examine the operation of each successive layer (and its components) as exact linear systems and to directly manipulate predictions. Despite their expressive power and global nonlinearity, modern LLMs can be interpreted through exact linear decompositions that reveal their internal representations and computational mechanisms.
 
 <p align="center">
-  <img src="https://github.com/jamesgolden1/llms-are-llms/blob/main/images/fig1-llama-detached-swiglu.png"  width=0.8/>
+  <img src="https://github.com/jamesgolden1/llms-are-llms/blob/main/images/fig1-llama-detached-swiglu.png" style="height:80%;"/>
 </p>
 
 Fig 1: The network components that are detached from the computational graph at inference to enable local linearity with respect to the input embedding vectors.
 
 <p align="center">
-  <img src="https://github.com/jamesgolden1/llms-are-llms/blob/main/images/fig3-jacobian-reconstruction.png"  width=0.7/>
+  <img src="https://github.com/jamesgolden1/llms-are-llms/blob/main/images/fig3-jacobian-reconstruction.png" style="height:70%;"/>
 </p>
 
 Fig 2: The reconstruction error of the Jacobian of the original network compared to the reconstruction error of the detached Jacobian of the network with a modified gradient at inference (which produces the same outputs as the original network).
 
 <p align="center">
-  <img src="https://github.com/jamesgolden1/llms-are-llms/blob/main/images/fig4-llama-32-detached-svd.png" width=0.7/>
+  <img src="https://github.com/jamesgolden1/llms-are-llms/blob/main/images/fig4-llama-32-detached-svd.png" style="height:70%;"/>
 </p>
 
 Fig 3: The right and left singular values of the Jacobian matrix corresponding to each input embedding vector can be decoded to tokens, demonstrating that the right singular vectors select for the input tokens (as expected), and the left singular vectors generate semantic concepts that appear in the decoded output.
 
 Mathematically, the Taylor expansion of a nonlinear function like the transformer mapping of input embedding vectors to a predicted output embedding vector is:
 <p align="center">
-  <img src="https://github.com/jamesgolden1/llms-are-llms/blob/main/images/jacobian_taylor.png" width=0.4/>
+  <img src="https://github.com/jamesgolden1/llms-are-llms/blob/main/images/jacobian_taylor.png"style="height:30%;"/>
 </p>
 
 By detaching the gradients of particular terms at inference with respect to the input embedding vectors, a linear path for the input is preserved through the transformer function such that the predicted output embedding is unchanged but the high order terms are all exactly zero. In other words, the network's inference (and all of its subcomponents) are locally linear for a particular inference sequence. The output can be nearly exactly reproduced by mutliplying the matrices of the detached Jacobian with the input embedding vectors. (The function is globally nonlinear, and the detached Jacobian must be computed numerically for each input sequence).
 
 <p align="center">
-  <img src="https://github.com/jamesgolden1/llms-are-llms/blob/main/images/jacobian_detached.png"  width=0.4/>
+  <img src="https://github.com/jamesgolden1/llms-are-llms/blob/main/images/jacobian_detached.png" style="height:30%;"/>
 </p>
 
