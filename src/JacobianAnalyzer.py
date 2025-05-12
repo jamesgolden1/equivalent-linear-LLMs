@@ -1041,7 +1041,7 @@ class JacobianAnalyzer:
             for ui in range(num_tokens):
                 # Format the token interpretations nicely
                 v_tokens = v_input[ui][0]
-                v_text = ', '.join(v_tokens[:5]).replace("\n", "").strip()  # Show first 5 tokens
+                v_text = ', '.join(v_tokens[:5]).replace("\n", "").replace(' ','')  # Show first 5 tokens
 
                 ax.text(
                     0.12, 0.98 - 0.05 * ui,
@@ -1057,9 +1057,9 @@ class JacobianAnalyzer:
             for ui in range(num_tokens):
                 # Extract first U vector interpretation
                 if mode == "row_col_vectors":
-                    u_text = u_input[ui][0].replace("\n", "").strip()
+                    u_text = u_input[ui][0].replace("\n", "").replace(' ','')
                 else:
-                    u_text = u_input[ui][0].replace("\n", "").strip()
+                    u_text = u_input[ui][0].replace("\n", "").replace(' ','')
 
                 ax.text(
                     0.12, ufig - 0.05 * ui,
