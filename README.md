@@ -13,7 +13,7 @@ This approach also allows us to examine the operation of each successive layer (
   <img src="https://github.com/jamesgolden1/llms-are-llms/blob/main/images/fig1-llama-detached-swiglu.png" width=70%/>
 </p>
 
-Fig 1: The network components that are detached from the computational graph at inference to enable local linearity with respect to the input embedding vectors.
+Fig 1: The Llama 3 architecture with gradient detachments that produce local linearity. The network components that are detached from the computational graph at inference to enable local linearity with respect to the input embedding vectors. These include normalization layers, feed forward/multi-layer perceptron blocks and attention blocks. This approach only works for LLMs with gated linear activations (Swish/SiLU, SwiGLU, GeLU) and zero-bias linear layers.
 
 <p align="center">
   <img src="https://github.com/jamesgolden1/llms-are-llms/blob/main/images/fig3-jacobian-reconstruction.png" width=50%"/>
@@ -32,7 +32,7 @@ Mathematically, the Taylor expansion of a nonlinear function like the transforme
   <img src="https://github.com/jamesgolden1/llms-are-llms/blob/main/images/jacobian_taylor.png" width=45%/>
 </p>
 
-By detaching the gradients of particular terms at inference with respect to the input embedding vectors, a linear path for the input is preserved through the transformer function such that the predicted output embedding is unchanged but the high order terms are all exactly zero. In other words, the network's inference (and all of its subcomponents) are locally linear for a particular inference sequence. The output can be nearly exactly reproduced by mutliplying the matrices of the detached Jacobian with the input embedding vectors. (The function is globally nonlinear, and the detached Jacobian must be computed numerically for each input sequence).
+By detaching the gradients of particular terms at inference with respect to the input embedding vectors, a linear path for the input is preserved through the transformer function such that the predicted output embedding is unchanged but the high order terms of the Taylor expansion are all exactly zero. In other words, the network's inference (and all of its subcomponents) are only dependent on the Jacobian and therefore locally linear for a particular inference sequence. The output can be nearly exactly reproduced by mutliplying the matrices of the detached Jacobian with the input embedding vectors. (The function is globally nonlinear, and the detached Jacobian must be computed numerically for each input sequence).
 
 <p align="center">
   <img src="https://github.com/jamesgolden1/llms-are-llms/blob/main/images/jacobian_detached.png" width=45%/>
