@@ -13,7 +13,7 @@ This approach also allows us to examine the operation of each successive layer (
   <img src="https://github.com/jamesgolden1/llms-are-llms/blob/main/images/fig1-llama-detached-swiglu.png" width=70%/>
 </p>
 
-Fig 1: The Llama 3 architecture with gradient detachments that produce local linearity. The network components that are detached from the computational graph at inference to enable local linearity with respect to the input embedding vectors. These include normalization layers, feed forward/multi-layer perceptron blocks and attention blocks. This approach only works for LLMs with gated linear activations (Swish/SiLU, SwiGLU, GeLU) and zero-bias linear layers.
+Fig 1: The Llama 3 architecture with gradient detachments that produce local linearity. The network components that are detached from the computational graph at inference to enable local linearity with respect to the input embedding vectors are outlined in red. These include normalization layers, feed forward/multi-layer perceptron blocks and attention blocks. This approach only works for LLMs with gated linear activations (Swish/SiLU, SwiGLU, GeLU) and zero-bias linear layers (for both feedfoward/MLP and attention blocks).
 
 <p align="center">
   <img src="https://github.com/jamesgolden1/llms-are-llms/blob/main/images/fig3-jacobian-reconstruction.png" width=50%"/>
