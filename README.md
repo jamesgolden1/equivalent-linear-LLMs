@@ -21,3 +21,20 @@ Fig 1: The network components that are detached from the computational graph at 
 
 Fig 2: The reconstruction error of the Jacobian of the original network compared to the reconstruction error of the detached Jacobian of the network with a modified gradient at inference (which produces the same outputs as the original network).
 
+<p align="center">
+  <img src="https://github.com/jamesgolden1/llms-are-llms/blob/main/images/fig4-llama-32-detached-svd.png" />
+</p>
+
+Fig 3: The right and left singular values of the Jacobian matrix corresponding to each input embedding vector can be decoded to tokens, demonstrating that the right singular vectors select for the input tokens (as expected), and the left singular vectors generate semantic concepts that appear in the decoded output.
+
+Mathematically, the Taylor expansion of a nonlinear function like the transformer mapping of input embedding vectors to a predicted output embedding vector is:
+<p align="center">
+  <img src="https://github.com/jamesgolden1/llms-are-llms/blob/main/images/jacobian_taylor.png" />
+</p>
+
+By detaching the gradients of particular terms at inference with respect to the input embedding vectors, a linear path for the input is preserved through the transformer function such that the predicted output embedding is unchanged but the high order terms are all exactly zero. In other words, the network's inference (and all of its subcomponents) are locally linear for a particular inference sequence. The output can be nearly exactly reproduced by mutliplying the matrices of the detached Jacobian with the input embedding vectors. (The function is globally nonlinear, and the detached Jacobian must be computed numerically for each input sequence).
+
+<p align="center">
+  <img src="https://github.com/jamesgolden1/llms-are-llms/blob/main/images/jacobian_detached.png" />
+</p>
+
