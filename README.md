@@ -16,7 +16,7 @@ This approach also allows us to examine the operation of each successive layer (
 Fig 1: The network components that are detached from the computational graph at inference to enable local linearity with respect to the input embedding vectors.
 
 <p align="center">
-  <img src="https://github.com/jamesgolden1/llms-are-llms/blob/main/images/fig3-jacobian-reconstruction.png" width=70%"/>
+  <img src="https://github.com/jamesgolden1/llms-are-llms/blob/main/images/fig3-jacobian-reconstruction.png" width=50%"/>
 </p>
 
 Fig 2: The reconstruction error of the Jacobian of the original network compared to the reconstruction error of the detached Jacobian of the network with a modified gradient at inference (which produces the same outputs as the original network).
@@ -29,12 +29,12 @@ Fig 3: The right and left singular values of the Jacobian matrix corresponding t
 
 Mathematically, the Taylor expansion of a nonlinear function like the transformer mapping of input embedding vectors to a predicted output embedding vector is:
 <p align="center">
-  <img src="https://github.com/jamesgolden1/llms-are-llms/blob/main/images/jacobian_taylor.png" width=30%/>
+  <img src="https://github.com/jamesgolden1/llms-are-llms/blob/main/images/jacobian_taylor.png" width=45%/>
 </p>
 
 By detaching the gradients of particular terms at inference with respect to the input embedding vectors, a linear path for the input is preserved through the transformer function such that the predicted output embedding is unchanged but the high order terms are all exactly zero. In other words, the network's inference (and all of its subcomponents) are locally linear for a particular inference sequence. The output can be nearly exactly reproduced by mutliplying the matrices of the detached Jacobian with the input embedding vectors. (The function is globally nonlinear, and the detached Jacobian must be computed numerically for each input sequence).
 
 <p align="center">
-  <img src="https://github.com/jamesgolden1/llms-are-llms/blob/main/images/jacobian_detached.png" width=30%/>
+  <img src="https://github.com/jamesgolden1/llms-are-llms/blob/main/images/jacobian_detached.png" width=45%/>
 </p>
 
