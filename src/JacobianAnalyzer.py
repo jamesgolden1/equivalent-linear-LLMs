@@ -1051,7 +1051,7 @@ class JacobianAnalyzer:
 
                 ax.text(
                     0.12, 0.98 - 0.05 * ui,
-                    uf"Token {ui}, V₀: {v_text}...",
+                    f"Token {ui}, V₀: {v_text}...",
                     transform=ax.transAxes,
                     size=textsize,
                     color=ax0[ui].get_color(),
