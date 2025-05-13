@@ -601,7 +601,7 @@ class JacobianAnalyzer:
 
                 # Get top tokens based on projection
                 top_token_indices = torch.argsort(outrecon)[:8]
-                decoded_tokens = [self.tokenizer.decode(idx).replace('\n', '').replace(' ', '') for idx in top_token_indices]
+                decoded_tokens = [self.tokenizer.decode(idx).replace('\n', '').replace('  ', ' ') for idx in top_token_indices]
                 dec_usvec = ' '.join(decoded_tokens)
 
                 print(f"Token {tkind}, U SV {ii}: {dec_usvec}")
@@ -732,7 +732,7 @@ class JacobianAnalyzer:
 
                 # Get top tokens based on projection
                 top_token_indices = torch.argsort(outrecon)[:8]
-                decoded_tokens = [self.tokenizer.decode(idx).replace('\n', '').strip().freplace('  ', ' ') for idx in top_token_indices]
+                decoded_tokens = [self.tokenizer.decode(idx).replace('\n', '').strip().replace('  ', ' ') for idx in top_token_indices]
                 dec_uvec = ' '.join(decoded_tokens)
 
                 ucolvec.append(dec_uvec)
