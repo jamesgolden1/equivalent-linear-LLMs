@@ -854,7 +854,6 @@ class JacobianAnalyzer:
         ax.set_xlim([-limv, limv])
         ax.set_ylim([-limv, limv])
         ax.grid()
-        plt.show()
 
         # Save figure if filename provided
         if filename_png is not None:
@@ -863,6 +862,7 @@ class JacobianAnalyzer:
             plt.savefig(f'{filename}.pdf')
             plt.savefig(f'{filename}.svg')
 
+        plt.show()
         return fig
     def plot_jacobian_image(self, tkind=0, svs=16, filename=None, filename_png=None):
         """
@@ -930,7 +930,6 @@ class JacobianAnalyzer:
         # Add axis labels to main plot
         ax.set_xlabel("Hidden Dimension")
         ax.set_ylabel("Output Dimension")
-        plt.show()
 
         # Save figure if filename provided
         if filename_png is not None:
@@ -938,6 +937,8 @@ class JacobianAnalyzer:
         if filename is not None:
             plt.savefig(f'{filename}.pdf', bbox_inches='tight')
             plt.savefig(f'{filename}.svg', bbox_inches='tight')
+
+        plt.show()
 
     def plot_singular_values(self, mode='singular_vectors', title=None, filename=None, filename_png=None, key=None, normalize_singular_value_0=True, yscale='linear',textsize=14):
         """
@@ -1110,7 +1111,6 @@ class JacobianAnalyzer:
 
         # Improve layout
         plt.tight_layout()
-        plt.show()
 
         # Save figures if filenames provided
         if filename_png is not None:
@@ -1119,6 +1119,8 @@ class JacobianAnalyzer:
         if filename is not None:
             plt.savefig(f"{filename}.pdf", bbox_inches='tight')
             plt.savefig(f"{filename}.svg", bbox_inches='tight')
+
+        plt.show()
 
     def plot_dimensionality(self, filename=None, filename_png=None, tkind=0, layerwise=False, tokens_combined=True, keys=['layer','attn','mlp']):
         """
@@ -1193,7 +1195,6 @@ class JacobianAnalyzer:
         #     plt.legend(["Layer Output (with residual)", "Attention Output (no residual)", "MLP Output (no residual)"])
         # else:
         plt.legend([ki+" Output (with residual)" if ki=='layer' else ki+" Output (with no residual)" for ki in keys])
-        plt.show()
 
         # Save figure if filename provided
         if filename_png is not None:
@@ -1202,6 +1203,7 @@ class JacobianAnalyzer:
             plt.savefig(f'{filename}.pdf')
             plt.savefig(f'{filename}.svg')
 
+        plt.show()
 
     def plot_path(self, filename=None, filename_png=None, key='layer', layer_label_cutoff=12):
         """
@@ -1281,7 +1283,6 @@ class JacobianAnalyzer:
         yl = self.usvec_layers['layer'][-1][1]
         plt.xlabel("Singular vector 0: \n" + str(xl))
         plt.ylabel("Singular vector 1: \n" + str(yl))
-        plt.show()
 
         # Save figure if filename provided
         if filename_png is not None:
@@ -1289,3 +1290,5 @@ class JacobianAnalyzer:
         if filename is not None:
             plt.savefig(f'{filename}.pdf')
             plt.savefig(f'{filename}.svg')
+
+        plt.show()
