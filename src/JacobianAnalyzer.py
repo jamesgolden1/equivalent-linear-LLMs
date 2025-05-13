@@ -650,7 +650,7 @@ class JacobianAnalyzer:
             self.uarr = uarr
             self.varr = varr
 
-        return sarr, uarr, varr, usvec, vsvec
+        # return sarr, uarr, varr, usvec, vsvec
 
     def compute_jacobian_row_col_norm(self, n_components=8, layers=False, tokens_combined=False, li=None):
         """
@@ -1227,7 +1227,7 @@ class JacobianAnalyzer:
         jl = np.stack(self.uarr_layers['layer'])
 
         # Initialize projection arrays
-        proj1, proj2 = [], []
+        proj1, proj2, proj3 = [], [], []
 
         # Create colormap for visualization
         cmap = plt.colormaps['plasma']
@@ -1237,12 +1237,18 @@ class JacobianAnalyzer:
         # Calculate projections of each layer's first two singular vectors onto the final layer's vectors
         for ii in range(jl.shape[0]):
             # Project first singular vector
-            proj1.append(usigns[ii] * jl[ii, 0, :, 0].squeeze().T @ jl[jl.shape[0]-1, 0, :, 0].squeeze())
+            # Product of usigns for current layers and last layer ensure both end up at (1,1)
+            proj1.append(usigns[-1][0]*usigns[ii][0] * jl[ii, 0, :, 0].squeeze().T @ jl[jl.shape[0]-1, 0, :, 0].squeeze())
             # Project second singular vector
-            proj2.append(usigns[ii] * jl[ii, 0, :, 1].squeeze().T @ jl[jl.shape[0]-1, 0, :, 1].squeeze())
+            proj2.append(usigns[-1][1]*usigns[ii][1] * jl[ii, 0, :, 1].squeeze().T @ jl[jl.shape[0]-1, 0, :, 1].squeeze())
+            proj3.append(usigns[-1][2]*usigns[ii][2] * jl[ii, 0, :, 2].squeeze().T @ jl[jl.shape[0]-1, 0, :, 2].squeeze())
 
         # Create scatter plot of projections
         plt.scatter(proj1, proj2)
+
+        self.path_proj1=np.array(proj1)
+        self.path_proj2=np.array(proj2)
+        self.path_proj3=np.array(proj3)
 
         # Generate colors for path visualization
         cv = [cmap(item/len(proj2)/1.) for item in np.arange(len(proj2), 0, -1)]
