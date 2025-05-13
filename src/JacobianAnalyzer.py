@@ -168,9 +168,6 @@ class JacobianAnalyzer:
         if "gemma" in self.model_name:
             self.model = self.model.language_model
 
-        # Set sign flip parameter for different model types
-        self.sign_flip = -1 if "mistral" in self.model_name else 1
-
     def prepare_input(self, text):
         """
         Prepare input for model processing.
@@ -612,7 +609,7 @@ class JacobianAnalyzer:
 
                 if not tokens_combined:
                     # Find nearest tokens for right singular vectors
-                    vvec = self.sign_flip * usigns[ii] * varr[tkind].T[:, ii]
+                    vvec = usigns[ii] * varr[tkind].T[:, ii]
                     # if self.model.lm_head.weight[0].dtype == torch.float16:
                     #     dec_vsvec = [self.tokenizer.convert_tokens_to_string([token.half()]) for token in self.find_nearest_token_batched(vvec, top_k=8)]
                     # else:
@@ -735,14 +732,14 @@ class JacobianAnalyzer:
 
                 # Get top tokens based on projection
                 top_token_indices = torch.argsort(outrecon)[:8]
-                decoded_tokens = [self.tokenizer.decode(idx).replace('\n', '').replace(' ', '') for idx in top_token_indices]
+                decoded_tokens = [self.tokenizer.decode(idx).replace('\n', '').strip().freplace('  ', ' ') for idx in top_token_indices]
                 dec_uvec = ' '.join(decoded_tokens)
 
                 ucolvec.append(dec_uvec)
 
                 if not tokens_combined:
                     # Find nearest tokens for right vectors
-                    vvec = self.sign_flip * usigns[ii] * vrow[tkind].T[:, ii]
+                    vvec = usigns[ii] * vrow[tkind].T[:, ii]
                     dec_vvec = [self.tokenizer.convert_tokens_to_string([token]) for token in self.find_nearest_token_batched(vvec, top_k=4)]
                     vrowvec.append(dec_vvec)
                 else:
@@ -1045,7 +1042,7 @@ class JacobianAnalyzer:
             for ui in range(num_tokens):
                 # Format the token interpretations nicely
                 v_tokens = v_input[ui][0]
-                v_text = ', '.join(v_tokens[:5]).replace("\n", "").replace(' ','')  # Show first 5 tokens
+                v_text = ', '.join(v_tokens[:5]).replace("\n", "").strip().replace('  ',' ')  # Show first 5 tokens
 
                 ax.text(
                     0.12, 0.98 - 0.05 * ui,
@@ -1061,9 +1058,9 @@ class JacobianAnalyzer:
             for ui in range(num_tokens):
                 # Extract first U vector interpretation
                 if mode == "row_col_vectors":
-                    u_text = u_input[ui][0].replace("\n", "").replace(' ','')
+                    u_text = u_input[ui][0].replace("\n", "").strip().replace('  ',' ')
                 else:
-                    u_text = u_input[ui][0].replace("\n", "").replace(' ','')
+                    u_text = u_input[ui][0].replace("\n", "").strip().replace('  ',' ')
 
                 ax.text(
                     0.12, ufig - 0.05 * ui,
