@@ -116,6 +116,7 @@ class JacobianAnalyzer:
         self.varr = None
         self.usvec = None
         self.vsvec = None
+        self.usigns = []
 
         # Column norm analysis containers
         self.scol_arr = None
@@ -132,7 +133,7 @@ class JacobianAnalyzer:
         self.usvec_layers = defaultdict(list)
         self.vsvec_layers = defaultdict(list)
         self.jac_layers = defaultdict(list)
-        self.usigns = defaultdict(list)
+        self.usigns_layers = defaultdict(list)
 
         # Layer-wise detached analysis containers
         self.jacobian_layers_layerwise = defaultdict(list)
@@ -625,12 +626,15 @@ class JacobianAnalyzer:
             if layers:
                 self.usvec_layers[key].append(usvec)
                 self.vsvec_layers[key].append(vsvec)
+                self.usigns_layers[key].append(usigns)
             elif layerwise:
                 self.usvec_layers_layerwise[key].append(usvec)
                 self.vsvec_layers_layerwise[key].append(vsvec)
+                self.usigns_layers_layerwise[key].append(usigns)
             else:
                 self.usvec.append(usvec)
                 self.vsvec.append(vsvec)
+                self.usigns.append(usigns)
 
         # Store SVD results
         if layers:
@@ -1137,13 +1141,13 @@ class JacobianAnalyzer:
                 if tokens_combined:
                     jacobian_np = [self.jacobian_layers_layerwise[key][li].view([self.jacobian_layers_layerwise[key][li].shape[0], -1]).cpu().detach().float().numpy() for li in range(len(self.jacobian_layers_layerwise[key]))]
                 else:
-                    jacobian_np = self.jacobian_layers_layerwise[key][-1].cpu().detach().float().numpy()
+                    jacobian_np = [self.jacobian_layers_layerwise[key][-1].cpu().detach().float().numpy() for li in range(len(self.jacobian_layers_layerwise[key]))]
             
             else:# elif layers:
                 if tokens_combined:
-                    jacobian_np = self.jacobian_layers[key][-1].view([self.jacobian_layers[key][-1].shape[0], -1]).cpu().detach().float().numpy()
+                    jacobian_np = [self.jacobian_layers[key][li].view([self.jacobian_layers[key][li].shape[0], -1]).cpu().detach().float().numpy() for li in range(len(self.jacobian_layers[key]))]
                 else:
-                    jacobian_np = self.jacobian_layers[key][-1].cpu().detach().float().numpy()
+                    jacobian_np = [self.jacobian_layers[key][-1].cpu().detach().float().numpy() for li in range(len(self.jacobian_layers[key]))]
 
 
             # Calculate dimensionality (stable rank) for 'layer' output
@@ -1162,7 +1166,7 @@ class JacobianAnalyzer:
                 # Use cumulative analysis (each layer building on previous layers)
                 layer_dim = np.array([
                     np.array([
-                        np.sum(jacobian_np**2) /
+                        np.sum(jacobian_np[ii]**2) /
                         # torch.sum(self.jacobian_layers[key][ii][:, tkind, :].detach()**2).cpu().float().numpy() /
                         ((np.max(np.array(self.sarr_layers[key][ii][kk])))**2)
                         for kk in range(1)
@@ -1228,12 +1232,14 @@ class JacobianAnalyzer:
         # Create colormap for visualization
         cmap = plt.colormaps['plasma']
 
+        usigns = self.usigns_layers[key] 
+
         # Calculate projections of each layer's first two singular vectors onto the final layer's vectors
         for ii in range(jl.shape[0]):
             # Project first singular vector
-            proj1.append(1 * jl[ii, 0, :, 0].squeeze().T @ jl[jl.shape[0]-1, 0, :, 0].squeeze())
+            proj1.append(usigns[ii] * jl[ii, 0, :, 0].squeeze().T @ jl[jl.shape[0]-1, 0, :, 0].squeeze())
             # Project second singular vector
-            proj2.append(1 * jl[ii, 0, :, 1].squeeze().T @ jl[jl.shape[0]-1, 0, :, 1].squeeze())
+            proj2.append(usigns[ii] * jl[ii, 0, :, 1].squeeze().T @ jl[jl.shape[0]-1, 0, :, 1].squeeze())
 
         # Create scatter plot of projections
         plt.scatter(proj1, proj2)
