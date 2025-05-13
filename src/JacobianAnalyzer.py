@@ -1,5 +1,6 @@
 import os 
 import gc
+import re 
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 import matplotlib.pyplot as plt
@@ -1036,6 +1037,9 @@ class JacobianAnalyzer:
         # Determine how many token positions to show interpretations for
         num_tokens = len(v_input)
 
+        def replace_multiple_spaces(text):
+            return re.sub(r"\s+", ", ", text).strip()
+
         # Add interpretations based on mode
         if "singular_vectors_layers" not in mode:
             # Add interpretations for V (right singular vectors)
@@ -1058,9 +1062,9 @@ class JacobianAnalyzer:
             for ui in range(num_tokens):
                 # Extract first U vector interpretation
                 if mode == "row_col_vectors":
-                    u_text = u_input[ui][0].replace("\n", "").lstrip().replace(' ',', ')
+                    u_text = replace_multiple_spaces(u_input[ui][0].replace("\n", ""))
                 else:
-                    u_text = u_input[ui][0].replace("\n", "").lstrip().replace(' ',', ')
+                    u_text = replace_multiple_spaces( u_input[ui][0].replace("\n", ""))
 
                 ax.text(
                     0.12, ufig - 0.05 * ui,
@@ -1079,12 +1083,12 @@ class JacobianAnalyzer:
             # Add interpretations for U (left singular vectors) per layer
             for ui in range(n):
                 if mode == "row_col_vectors":
-                    u_text = u_input[ui][0].replace("\n", "").lstrip().replace(' ',', ')
+                    u_text = replace_multiple_spaces(u_input[ui][0].replace("\n", ""))
                 else:
                     if len(u_input[ui]) == 1:  # only one singular vector
-                        u_text = u_input[ui].replace("\n", "").lstrip().replace(' ',', ')
+                        u_text = replace_multiple_spaces(u_input[ui].replace("\n", ""))
                     else:
-                        u_text = u_input[ui][0].replace("\n", "").lstrip().replace(' ',', ')
+                        u_text = replace_multiple_spaces(u_input[ui][0].replace("\n", ""))
 
                 ax.text(
                     0.12, ufig - 0.05 * ui,
