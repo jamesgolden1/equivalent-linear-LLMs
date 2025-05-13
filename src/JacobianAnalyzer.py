@@ -1079,12 +1079,12 @@ class JacobianAnalyzer:
             # Add interpretations for U (left singular vectors) per layer
             for ui in range(n):
                 if mode == "row_col_vectors":
-                    u_text = u_input[ui][0].replace("\n", "").replace('  ',' ')
+                    u_text = u_input[ui][0].replace("\n", "")
                 else:
                     if len(u_input[ui]) == 1:  # only one singular vector
-                        u_text = u_input[ui].replace("\n", "").replace('  ',' ')
+                        u_text = u_input[ui].replace("\n", "")
                     else:
-                        u_text = u_input[ui][0].replace("\n", "").replace('  ',' ')
+                        u_text = u_input[ui][0].replace("\n", "")
 
                 ax.text(
                     0.12, ufig - 0.05 * ui,
