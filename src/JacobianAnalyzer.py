@@ -145,7 +145,7 @@ class JacobianAnalyzer:
         self.usvec_layers_layerwise = defaultdict(list)
         self.vsvec_layers_layerwise = defaultdict(list)
         self.jac_layers_layerwise = defaultdict(list)
-        self.usigns_layerwise = defaultdict(list)
+        self.usigns_layers_layerwise = defaultdict(list)
 
         # Layer list for tracking
         self.layerlist = None
