@@ -732,7 +732,7 @@ class JacobianAnalyzer:
 
                 # Get top tokens based on projection
                 top_token_indices = torch.argsort(outrecon)[:8]
-                decoded_tokens = [self.tokenizer.decode(idx).replace('\n', '').strip().replace('  ', ' ') for idx in top_token_indices]
+                decoded_tokens = [self.tokenizer.decode(idx).replace('\n', '').replace('  ', ' ') for idx in top_token_indices]
                 dec_uvec = ' '.join(decoded_tokens)
 
                 ucolvec.append(dec_uvec)
@@ -1042,7 +1042,7 @@ class JacobianAnalyzer:
             for ui in range(num_tokens):
                 # Format the token interpretations nicely
                 v_tokens = v_input[ui][0]
-                v_text = ', '.join(v_tokens[:5]).replace("\n", "").strip().replace('  ',' ')  # Show first 5 tokens
+                v_text = ', '.join(v_tokens[:5]).replace("\n", "").replace('  ',' ')  # Show first 5 tokens
 
                 ax.text(
                     0.12, 0.98 - 0.05 * ui,
@@ -1058,9 +1058,9 @@ class JacobianAnalyzer:
             for ui in range(num_tokens):
                 # Extract first U vector interpretation
                 if mode == "row_col_vectors":
-                    u_text = u_input[ui][0].replace("\n", "").strip().replace('  ',' ')
+                    u_text = u_input[ui][0].replace("\n", "").replace('  ',' ')
                 else:
-                    u_text = u_input[ui][0].replace("\n", "").strip().replace('  ',' ')
+                    u_text = u_input[ui][0].replace("\n", "").replace('  ',' ')
 
                 ax.text(
                     0.12, ufig - 0.05 * ui,
