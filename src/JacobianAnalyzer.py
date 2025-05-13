@@ -1062,9 +1062,9 @@ class JacobianAnalyzer:
             for ui in range(num_tokens):
                 # Extract first U vector interpretation
                 if mode == "row_col_vectors":
-                    u_text = replace_multiple_spaces(u_input[ui][0].replace("\n", ""))
+                    u_text = replace_multiple_spaces(u_input[ui][0].replace("\n", "").strip())
                 else:
-                    u_text = replace_multiple_spaces( u_input[ui][0].replace("\n", ""))
+                    u_text = replace_multiple_spaces(u_input[ui][0].replace("\n", "").strip())
 
                 ax.text(
                     0.12, ufig - 0.05 * ui,
@@ -1083,12 +1083,12 @@ class JacobianAnalyzer:
             # Add interpretations for U (left singular vectors) per layer
             for ui in range(n):
                 if mode == "row_col_vectors":
-                    u_text = replace_multiple_spaces(u_input[ui][0].replace("\n", ""))
+                    u_text = replace_multiple_spaces(u_input[ui][0].replace("\n", "").strip())
                 else:
                     if len(u_input[ui]) == 1:  # only one singular vector
-                        u_text = replace_multiple_spaces(u_input[ui].replace("\n", ""))
+                        u_text = replace_multiple_spaces(u_input[ui].replace("\n", "").strip())
                     else:
-                        u_text = replace_multiple_spaces(u_input[ui][0].replace("\n", ""))
+                        u_text = replace_multiple_spaces(u_input[ui][0].replace("\n", "").strip())
 
                 ax.text(
                     0.12, ufig - 0.05 * ui,
