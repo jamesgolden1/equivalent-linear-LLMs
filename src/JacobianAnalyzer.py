@@ -1114,7 +1114,7 @@ class JacobianAnalyzer:
             plt.savefig(f"{filename}.pdf", bbox_inches='tight')
             plt.savefig(f"{filename}.svg", bbox_inches='tight')
 
-    def plot_dimensionality(self, filename=None, filename_png=None, tkind=0, layerwise=False):
+    def plot_dimensionality(self, filename=None, filename_png=None, tkind=0, layerwise=False, tokens_combined=True, keys=['layer','attn','mlp']):
         """
         Plot the dimensionality (stable rank) of Jacobian matrices across layers.
 
@@ -1132,71 +1132,43 @@ class JacobianAnalyzer:
 
         fig, ax = plt.subplots(1, 1, figsize=(10, 8))
 
-        # Calculate dimensionality (stable rank) for 'layer' output
-        if layerwise:
-            # Use layerwise analysis (each layer's independent contribution)
-            layer_dim = np.array([
-                np.array([
-                    np.sum(np.array(self.sarr_layers_layerwise['layer'][ii][kk])**2) /
-                    ((np.max(np.array(self.sarr_layers_layerwise['layer'][ii][kk])))**2)
-                    for kk in range(1)
-                ]) for ii in range(len(self.sarr_layers_layerwise['layer']))
-            ])
-            plt.plot(self.layerlist, layer_dim, '-x')
-        else:
-            # Use cumulative analysis (each layer building on previous layers)
-            layer_dim = np.array([
-                np.array([
-                    torch.sum(self.jacobian_layers['layer'][ii][:, tkind, :].detach()**2).cpu().float().numpy() /
-                    ((np.max(np.array(self.sarr_layers['layer'][ii][kk])))**2)
-                    for kk in range(1)
-                ]) for ii in range(len(self.sarr_layers['layer']))
-            ])
-            plt.plot(self.layerlist, layer_dim, '-x')
+        for key in keys:
+            if layerwise:
+                if tokens_combined:
+                    jacobian_np = [self.jacobian_layers_layerwise[key][li].view([self.jacobian_layers_layerwise[key][li].shape[0], -1]).cpu().detach().float().numpy() for li in range(len(self.jacobian_layers_layerwise[key]))]
+                else:
+                    jacobian_np = self.jacobian_layers_layerwise[key][-1].cpu().detach().float().numpy()
+            
+            else:# elif layers:
+                if tokens_combined:
+                    jacobian_np = self.jacobian_layers[key][-1].view([self.jacobian_layers[key][-1].shape[0], -1]).cpu().detach().float().numpy()
+                else:
+                    jacobian_np = self.jacobian_layers[key][-1].cpu().detach().float().numpy()
 
-        # Set appropriate title based on analysis type
-        title_mode = "layerwise" if layerwise else "cumulative"
-        plt.title(f'Model: ' +self.model_name +'\nInput seq: "' +self.last_input_text+' [[' +self.output_token+ ']]"\nPseudo-Jacobian Layer Matrix Rank as a function of layer depth, {title_mode}')
 
-        # Calculate dimensionality for 'attention' output
-        if layerwise:
-            attn_dim = np.array([
-                np.array([
-                    np.sum(np.array(self.sarr_layers_layerwise['attn'][ii][kk])**2) /
-                    ((np.max(np.array(self.sarr_layers_layerwise['attn'][ii][kk])))**2)
-                    for kk in range(1)
-                ]) for ii in range(len(self.sarr_layers_layerwise['attn']))
-            ])
-            plt.plot(self.layerlist, attn_dim, '-x')
-        else:
-            attn_dim = np.array([
-                np.array([
-                    torch.sum(self.jacobian_layers['attn'][ii][:, tkind, :].detach()**2).cpu().float().numpy() /
-                    ((np.max(np.array(self.sarr_layers['attn'][ii][kk])))**2)
-                    for kk in range(1)
-                ]) for ii in range(len(self.sarr_layers['attn']))
-            ])
-            plt.plot(self.layerlist, attn_dim, '-x')
-
-        # Calculate dimensionality for 'MLP' output
-        if layerwise:
-            mlp_dim = np.array([
-                np.array([
-                    np.sum(np.array(self.sarr_layers_layerwise['mlp'][ii][kk])**2) /
-                    ((np.max(np.array(self.sarr_layers_layerwise['mlp'][ii][kk])))**2)
-                    for kk in range(1)
-                ]) for ii in range(len(self.sarr_layers_layerwise['mlp']))
-            ])
-            plt.plot(self.layerlist, mlp_dim, '-x')
-        else:
-            mlp_dim = np.array([
-                np.array([
-                    torch.sum(self.jacobian_layers['mlp'][ii][:, tkind, :].detach()**2).cpu().float().numpy() /
-                    ((np.max(np.array(self.sarr_layers['mlp'][ii][kk])))**2)
-                    for kk in range(1)
-                ]) for ii in range(len(self.sarr_layers['mlp']))
-            ])
-            plt.plot(self.layerlist, mlp_dim, '-x')
+            # Calculate dimensionality (stable rank) for 'layer' output
+            if layerwise:        
+                # Use layerwise analysis (each layer's independent contribution)
+                layer_dim = np.array([
+                    np.array([
+                        np.sum(jacobian_np[ii]**2) /
+                        # np.sum(np.array(self.sarr_layers_layerwise['layer'][ii][kk])**2) /                    
+                        ((np.max(np.array(self.sarr_layers_layerwise[key][ii][kk])))**2)
+                        for kk in range(1)
+                    ]) for ii in range(len(self.sarr_layers_layerwise[key]))
+                ])
+                plt.plot(self.layerlist, layer_dim, '-x')
+            else:
+                # Use cumulative analysis (each layer building on previous layers)
+                layer_dim = np.array([
+                    np.array([
+                        np.sum(jacobian_np**2) /
+                        # torch.sum(self.jacobian_layers[key][ii][:, tkind, :].detach()**2).cpu().float().numpy() /
+                        ((np.max(np.array(self.sarr_layers[key][ii][kk])))**2)
+                        for kk in range(1)
+                    ]) for ii in range(len(self.sarr_layers[key]))
+                ])
+                plt.plot(self.layerlist, layer_dim, '-x')
 
         # Update plot with legend and comprehensive title
         plt.grid()
@@ -1206,12 +1178,15 @@ class JacobianAnalyzer:
         # Set title based on analysis type
         if layerwise:
         # Add title and labels        
-            plt.title('Model: ' +self.model_name +'\nInput+prediction: "' +self.last_input_text+' [[' +self.output_token+ ']]"\nLayerwise Detached Jacobian Layer Matrix Rank as a function of layer depth')
+            plt.title('Model: ' +self.model_name +'\nInput+prediction: "' +self.last_input_text+' [[' +self.output_token+ ']]"\nLayerwise Detached Jacobian Layer Matrix Dimensionality as a function of layer depth')
         else:
-            plt.title('Model: ' +self.model_name +'\nInput+prediction: "' +self.last_input_text+' [[' +self.output_token+ ']]"\nCumulative Detached Jacobian Layer Matrix Rank as a function of layer depth')
+            plt.title('Model: ' +self.model_name +'\nInput+prediction: "' +self.last_input_text+' [[' +self.output_token+ ']]"\nCumulative Detached Jacobian Layer Matrix Dimensionality as a function of layer depth')
 
         # Add legend explaining the three different lines
-        plt.legend(["Layer Output (with residual)", "Attention Output (no residual)", "MLP Output (no residual)"])
+        # if len(keys)==3:
+        #     plt.legend(["Layer Output (with residual)", "Attention Output (no residual)", "MLP Output (no residual)"])
+        # else:
+        plt.legend([ki+" Output (with residual)" if ki=='layer' else ki+" Output (with no residual)" for ki in keys])
         plt.show()
 
         # Save figure if filename provided
@@ -1220,6 +1195,7 @@ class JacobianAnalyzer:
         if filename is not None:
             plt.savefig(f'{filename}.pdf')
             plt.savefig(f'{filename}.svg')
+
 
     def plot_path(self, filename=None, filename_png=None, key='layer', layer_label_cutoff=12):
         """
