@@ -994,8 +994,8 @@ class JacobianAnalyzer:
 
             # Add grid and labels
             ax.grid(alpha=0.3)
-            ax.set_xlabel("Sorted column index", fontsize=12)
-            ax.set_ylabel("Column norm magnitude", fontsize=12)
+            ax.set_xlabel("Singular value index", fontsize=12)
+            ax.set_ylabel("Singular value magnitude", fontsize=12)
         else:
             # Layer-wise singular value plot with color coding
             n = np.array(s_input).squeeze().shape[0]
@@ -1033,6 +1033,8 @@ class JacobianAnalyzer:
             title = title or f'Model: ' +self.model_name +'\nInput+prediction: "' +self.last_input_text+' [[' +self.output_token+ ']]"\nSVD of Layerwise Detached Jacobian for ' +key.upper()+ ' output'
         elif mode == "row_col_vectors":
             title = title or f'Model: ' +self.model_name +'\nInput+prediction: "' +self.last_input_text+' [[' +self.output_token+ ']]"\nCols of the Detached Jacobian with Largest Norms'
+            ax.set_xlabel("Sorted column index", fontsize=12)
+            ax.set_ylabel("Column norm magnitude", fontsize=12)
 
         ax.set_title(title, fontsize=14)
 
