@@ -994,8 +994,8 @@ class JacobianAnalyzer:
 
             # Add grid and labels
             ax.grid(alpha=0.3)
-            ax.set_xlabel("Singular value index", fontsize=12)
-            ax.set_ylabel("Singular value magnitude", fontsize=12)
+            ax.set_xlabel("Sorted column index", fontsize=12)
+            ax.set_ylabel("Column norm magnitude", fontsize=12)
         else:
             # Layer-wise singular value plot with color coding
             n = np.array(s_input).squeeze().shape[0]
