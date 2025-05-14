@@ -857,10 +857,10 @@ class JacobianAnalyzer:
 
         # Save figure if filename provided
         if filename_png is not None:
-            plt.savefig(f'{filename_png}.png')
+            plt.savefig(f'{filename_png}.png',dpi=300, bbox_inches='tight')
         if filename is not None:
-            plt.savefig(f'{filename}.pdf')
-            plt.savefig(f'{filename}.svg')
+            plt.savefig(f'{filename}.pdf', bbox_inches='tight')
+            plt.savefig(f'{filename}.svg', bbox_inches='tight')
 
         plt.show()
         return fig
@@ -1114,7 +1114,7 @@ class JacobianAnalyzer:
 
         # Save figures if filenames provided
         if filename_png is not None:
-            plt.savefig(f'{filename_png}.png', bbox_inches='tight')
+            plt.savefig(f'{filename_png}.png', dpi=300, bbox_inches='tight')
 
         if filename is not None:
             plt.savefig(f"{filename}.pdf", bbox_inches='tight')
@@ -1198,10 +1198,10 @@ class JacobianAnalyzer:
 
         # Save figure if filename provided
         if filename_png is not None:
-            plt.savefig(f'{filename_png}.png')
+            plt.savefig(f'{filename_png}.png',dpi=300, bbox_inches='tight')
         if filename is not None:
-            plt.savefig(f'{filename}.pdf')
-            plt.savefig(f'{filename}.svg')
+            plt.savefig(f'{filename}.pdf', bbox_inches='tight')
+            plt.savefig(f'{filename}.svg', bbox_inches='tight')
 
         plt.show()
 
@@ -1286,9 +1286,9 @@ class JacobianAnalyzer:
 
         # Save figure if filename provided
         if filename_png is not None:
-            plt.savefig(f'{filename_png}.png', bbox_inches='tight')
+            plt.savefig(f'{filename_png}.png', dpi=300, bbox_inches='tight')
         if filename is not None:
-            plt.savefig(f'{filename}.pdf')
-            plt.savefig(f'{filename}.svg')
+            plt.savefig(f'{filename}.pdf', bbox_inches='tight')
+            plt.savefig(f'{filename}.svg', bbox_inches='tight')
 
         plt.show()
