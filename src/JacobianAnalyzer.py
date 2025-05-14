@@ -1028,9 +1028,9 @@ class JacobianAnalyzer:
         if mode == 'singular_vectors':
             title = title or f'Model: ' +self.model_name +'\nInput+prediction: "' +self.last_input_text+' [[' +self.output_token+ ']]"\nSVD of the Detached Jacobian"'
         elif mode == 'singular_vectors_layers':
-            title = title or f'Model: ' +self.model_name +'\nInput+prediction: "' +self.last_input_text+' [[' +self.output_token+ ']]"\nSVD of Cumulative Detached Jacobian up to ' +key.upper()+ ' module'
+            title = title or f'Model: ' +self.model_name +'\nInput+prediction: "' +self.last_input_text+' [[' +self.output_token+ ']]"\nSVD of Cumulative Detached Jacobian up to ' +key.upper()+ ' output'
         elif mode == 'singular_vectors_layers_layerwise':
-            title = title or f'Model: ' +self.model_name +'\nInput+prediction: "' +self.last_input_text+' [[' +self.output_token+ ']]"\nSVD of Layerwise Detached Jacobian for ' +key.upper()+ ' module"'
+            title = title or f'Model: ' +self.model_name +'\nInput+prediction: "' +self.last_input_text+' [[' +self.output_token+ ']]"\nSVD of Layerwise Detached Jacobian for ' +key.upper()+ ' output"'
         elif mode == "row_col_vectors":
             title = title or f'Model: ' +self.model_name +'\nInput+prediction: "' +self.last_input_text+' [[' +self.output_token+ ']]"\nColumn Norms of Detached Jacobian'
 
@@ -1052,7 +1052,7 @@ class JacobianAnalyzer:
 
                 ax.text(
                     0.12, 0.98 - 0.05 * ui,
-                    f"Token {ui}, V₀: {v_text}...",
+                    f"Token {ui}, Rows: {v_text}...",
                     transform=ax.transAxes,
                     size=textsize,
                     color=ax0[ui].get_color(),
@@ -1070,7 +1070,7 @@ class JacobianAnalyzer:
 
                 ax.text(
                     0.12, ufig - 0.05 * ui,
-                    f"Token {ui}, U₀: {u_text}...",
+                    f"Token {ui}, Cols: {u_text}...",
                     transform=ax.transAxes,
                     size=textsize,
                     color=ax0[ui].get_color(),
