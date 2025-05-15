@@ -1067,17 +1067,26 @@ class JacobianAnalyzer:
                 # Extract first U vector interpretation
                 if mode == "row_col_vectors":
                     u_text = replace_multiple_spaces(u_input[ui][0].replace("\n", "").strip())
+
+                    ax.text(
+                        0.12, ufig - 0.05 * ui,
+                        f"Token {ui}, Cols: {u_text}...",
+                        transform=ax.transAxes,
+                        size=textsize,
+                        color=ax0[ui].get_color(),
+                        bbox=dict(facecolor='white', alpha=0.7, edgecolor='none', pad=2)
+                    )
                 else:
                     u_text = replace_multiple_spaces(u_input[ui][0].replace("\n", "").strip())
 
-                ax.text(
-                    0.12, ufig - 0.05 * ui,
-                    f"Token {ui}, Cols: {u_text}...",
-                    transform=ax.transAxes,
-                    size=textsize,
-                    color=ax0[ui].get_color(),
-                    bbox=dict(facecolor='white', alpha=0.7, edgecolor='none', pad=2)
-                )
+                    ax.text(
+                        0.12, ufig - 0.05 * ui,
+                        f"Token {ui}, U₀: {u_text}...",
+                        transform=ax.transAxes,
+                        size=textsize,
+                        color=ax0[ui].get_color(),
+                        bbox=dict(facecolor='white', alpha=0.7, edgecolor='none', pad=2)
+                    )
         else:
             # Store for layer analysis
             self.ax0 = ax0
