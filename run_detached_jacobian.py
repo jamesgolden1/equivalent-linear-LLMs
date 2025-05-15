@@ -72,7 +72,7 @@ def get_inputs():
 def main():
     token, model_name, text, run_all = get_inputs()
 
-    from JacobianAnalyzer import JacobianAnalyzer as JacobianAnalyzer
+    from src.JacobianAnalyzer import JacobianAnalyzer as JacobianAnalyzer
 
     if "gemma" in model_name:
         from models.gemma_3.gemma_3_forward import model_forward
