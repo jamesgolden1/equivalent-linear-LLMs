@@ -153,7 +153,7 @@ class JacobianAnalyzer:
     def load_model(self, dtype=torch.bfloat16):
         """Load and prepare the model for inference and gradient computation."""
 
-        if "bnb" in self.model_name:
+        if "bnb" in self.model_name and "gemma" not in self.model_name:
             self.quantization_config = BitsAndBytesConfig(load_in_4bit=True)
             self.model = AutoModelForCausalLM.from_pretrained(
                 self.model_name,
