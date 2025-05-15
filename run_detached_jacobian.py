@@ -74,15 +74,15 @@ def main():
 
     from src.JacobianAnalyzer import JacobianAnalyzer as JacobianAnalyzer
 
-    if "gemma" in model_name:
+    if "gemma" in model_name.lower():
         from models.gemma_3.gemma_3_forward import model_forward
-    elif "phi" in model_name:
+    elif "phi" in model_name.lower():
         from models.phi_4.phi_4_forward import model_forward
-    elif "qwen" in model_name:
+    elif "qwen" in model_name.lower():
         from models.qwen_3.qwen_3_forward import model_forward
-    elif "mistral" in model_name:
+    elif "mistral" in model_name.lower():
         from models.mistral_ministral.mistral_ministral_forward import model_forward
-    # elif "olmo" in model_name:
+    # elif "olmo" in model_name.lower():
     #     from models.olmo_2.olmo_2_forward import model_forward
     # else: # llama_3_model model_forward already loaded by default
         # from models.llama_3.llama_3_forward import model_forward
@@ -108,15 +108,15 @@ def main():
     # # # Compute Jacobian
     analyzer.compute_jacobian()
     analyzer.compute_jacobian_nonlinear()
-    analyzer.plot_jacobian_comparison(text,filename_png="fig3"+model_name_short)
+    analyzer.plot_jacobian_comparison(text,filename_png="fig3"+model_name_short,filename="fig3"+model_name_short)
 
     analyzer.compute_jacobian_row_col_norm(n_components=8)#, svs=1)
-    analyzer.plot_singular_values(mode="row_col_vectors",filename_png="fig4_col"+model_name_short)
+    analyzer.plot_singular_values(mode="row_col_vectors",filename_png="fig4_col"+model_name_short,filename="fig4_col"+model_name_short)
 
     analyzer.compute_jacobian_svd(n_components=24, svs=1)
-    analyzer.plot_singular_values(filename_png="fig4"+model_name_short)
+    analyzer.plot_singular_values(filename_png="fig4"+model_name_short,filename="fig4"+model_name_short)
 
-    analyzer.plot_jacobian_image(filename_png="fig2"+model_name_short)
+    analyzer.plot_jacobian_image(filename_png="fig2"+model_name_short, filename="fig2"+model_name_short)
 
     if run_all:
         num_layers = len(analyzer.model.model.layers)
