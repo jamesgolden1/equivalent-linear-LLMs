@@ -64,7 +64,7 @@ def get_inputs():
     if text is None:
         text = "The bridge out of Marin is the"
     
-    dtype = args. dtype
+    dtype = args.dtype
     if dtype == "float16":
         dtype = torch.float16
     elif dtype == "float32":
@@ -96,8 +96,8 @@ def main():
     # else: # llama_3_model model_forward already loaded by default
         # from models.llama_3.llama_3_forward import model_forward
     if "llama" not in model_name: 
-        setattr(JacobianAnalyzer, 'model_forward', model_forward)
-    # JacobianAnalyzer.model_forward = staticmethod(model_forward, dtype=dtype)
+        setattr(JacobianAnalyzer, 'model_forward', model_forward, dtype=dtype)
+    # JacobianAnalyzer.model_forward = staticmethod(model_forward)
 
     model_name_short = '_'+model_name.split('/')[1]
 
