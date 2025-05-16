@@ -454,7 +454,7 @@ class JacobianAnalyzer:
 
         return jacobian_layerwise_i
 
-    def compute_jacobian_layer_i_to_end(self, i=None, key='layer'):
+    def compute_jacobian_layer_i_to_end(self, i=None, transform_to_last_layer=None, key='layer'):
         """
         Compute Jacobian for a specific layer considering only that layer's transformation.
 
@@ -465,10 +465,12 @@ class JacobianAnalyzer:
         Returns:
             Tensor: Layer-specific Jacobian
         """
+        if transform_to_last_layer is None:
+            transform_to_last_layer=len(self.model.model.layers)-1 
         # Get input to the layer
         x_layer_input = self.model_forward(self.embeds, lsplit=i, key='layer_input')
         # model_forward_lsplit = partial(self.model_forward, lstart=i-1, lsplit=i, key=key)
-        model_forward_lsplit_end = partial(self.model_forward, lstart=i-1, lsplit=len(self.model.model.layers)-2, key=key)
+        model_forward_lsplit_end = partial(self.model_forward, lstart=i-1, lsplit= transform_to_last_layer, key=key)
         # print("x input: ", x_layer_input)
         # print("output: ",model_forward_lsplit_end(x_layer_input))
         jacobian_layer_i_to_end = torch.autograd.functional.jacobian(
@@ -793,7 +795,7 @@ class JacobianAnalyzer:
 
     def compute_jacobian_layers_svd(self, layerlist, tokens_combined=True, token_list=None,
                                    n_components=8, svs=1, key='layer', input_key='layer_input',
-                                   layer_mode='cumulative', transform_to_output=False):
+                                   layer_mode='cumulative', transform_to_output=False, transform_to_last_layer=None):
         """
         Compute SVD analysis across multiple layers.
 
@@ -824,7 +826,7 @@ class JacobianAnalyzer:
                     self.jacobian_layers_to_end[key].append(self.compute_jacobian_layer_i_to_end(i=layeri, key=key).detach().cpu())
                 self.compute_jacobian_svd(layers=True, n_components=n_components, svs=svs,
                                         tokens_combined=tokens_combined, token_list=token_list,
-                                        li=layeri, key=key, transform_to_output=transform_to_output)
+                                        li=layeri, key=key, transform_to_output=transform_to_output,transform_to_last_layer=transform_to_last_layer)
             else:
                 print(key, "layer", layeri, "layerwise")
                 self.jacobian_layers_layerwise[key].append(self.compute_jacobian_layerwise_i(i=layeri, key=key).detach().cpu())
@@ -832,7 +834,7 @@ class JacobianAnalyzer:
                     self.jacobian_layers_to_end[key].append(self.compute_jacobian_layer_i_to_end(i=layeri, key=key).detach().cpu())
                 self.compute_jacobian_svd(layerwise=True, n_components=n_components, svs=svs,
                                         tokens_combined=tokens_combined, token_list=token_list,
-                                        li=layeri, key=key, transform_to_output=transform_to_output)
+                                        li=layeri, key=key, transform_to_output=transform_to_output, transform_to_last_layer= transform_to_last_layer)
             gc.collect()
             torch.cuda.empty_cache()
 
