@@ -9,6 +9,7 @@ def get_inputs():
     parser.add_argument("--model_name", help="Examples: llama-3.2-3b, gemma-3-4b, qwen-3-8b")
     parser.add_argument("--text", help="Input text sequence, model predicts next token and analyzes the detached Jacobian")
     parser.add_argument("--run_all", help="run all analysis scripts it true, takes a long time; if false, run a few quick ones")
+    parser.add_argument("--dtype", help="torch data type, can be bfloat16, float16 or float32")
     args = parser.parse_args()
 
     token = os.environ.get("HF_TOKEN") or args.hf_token
@@ -63,14 +64,18 @@ def get_inputs():
     if text is None:
         text = "The bridge out of Marin is the"
     
+    dtype = args. dtype
+    if dtype is None:
+        dtype = torch.bfloat16
+    
     run_all = args.run_all
     if run_all is None:
         run_all = False
     
-    return token, model_name, text, run_all
+    return token, model_name, text, run_all, dtype
 
 def main():
-    token, model_name, text, run_all = get_inputs()
+    token, model_name, text, run_all, dtype = get_inputs()
 
     from src.JacobianAnalyzer import JacobianAnalyzer as JacobianAnalyzer
 
@@ -88,7 +93,7 @@ def main():
         # from models.llama_3.llama_3_forward import model_forward
 
     setattr(JacobianAnalyzer, 'model_forward', model_forward)
-    # JacobianAnalyzer.model_forward = staticmethod(model_forward)
+    # JacobianAnalyzer.model_forward = staticmethod(model_forward, dtype=dtype)
 
     model_name_short = '_'+model_name.split('/')[1]
 
