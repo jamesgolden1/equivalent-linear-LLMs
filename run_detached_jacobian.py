@@ -95,8 +95,8 @@ def main():
     #     from models.olmo_2.olmo_2_forward import model_forward
     # else: # llama_3_model model_forward already loaded by default
         # from models.llama_3.llama_3_forward import model_forward
-
-    setattr(JacobianAnalyzer, 'model_forward', model_forward)
+    if "llama" not in model_name: 
+        setattr(JacobianAnalyzer, 'model_forward', model_forward)
     # JacobianAnalyzer.model_forward = staticmethod(model_forward, dtype=dtype)
 
     model_name_short = '_'+model_name.split('/')[1]
