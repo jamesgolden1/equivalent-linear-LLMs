@@ -453,6 +453,29 @@ class JacobianAnalyzer:
 
         return jacobian_layerwise_i
 
+    def compute_jacobian_layerwise_i_to_end(self, i=None, key='layer'):
+        """
+        Compute Jacobian for a specific layer considering only that layer's transformation.
+
+        Args:
+            i (int, optional): Layer index
+            key (str): Type of output to get from the layer
+
+        Returns:
+            Tensor: Layer-specific Jacobian
+        """
+        # Get input to the layer
+        x_layer_input = self.model_forward(self.embeds, lsplit=i, key='layer_input')
+
+        model_forward_lsplit_end = partial(self.model_forward, lstart=i, lsplit=len(self.model.model.layers), key=key)
+        jacobian_layer_i = torch.autograd.functional.jacobian(
+            model_forward_lsplit_end,
+            x_layer_input,
+            vectorize=True,
+            strategy="reverse-mode"
+        ).squeeze()
+
+
     def find_nearest_token_batched(self, vector, top_k=1, batch_size=1000):
         """
         Find the nearest tokens to a given vector in the embedding space.
@@ -1052,15 +1075,24 @@ class JacobianAnalyzer:
                 v_tokens = v_input[ui][0]
                 v_text = ', '.join(v_tokens[:5]).replace("\n", "").lstrip()  # Show first 5 tokens
 
-                ax.text(
-                    0.12, 0.98 - 0.05 * ui,
-                    f"Token {ui}, Rows: {v_text}...",
-                    transform=ax.transAxes,
-                    size=textsize,
-                    color=ax0[ui].get_color(),
-                    bbox=dict(facecolor='white', alpha=0.7, edgecolor='none', pad=2)
-                )
-
+                if mode == "row_col_vectors":
+                    ax.text(
+                        0.12, 0.98 - 0.05 * ui,
+                        f"Token {ui}, Rows: {v_text}...",
+                        transform=ax.transAxes,
+                        size=textsize,
+                        color=ax0[ui].get_color(),
+                        bbox=dict(facecolor='white', alpha=0.7, edgecolor='none', pad=2)
+                    )
+                else:
+                    ax.text(
+                        0.12, 0.98 - 0.05 * ui,
+                        f"Token {ui}, V₀: {v_text}...",
+                        transform=ax.transAxes,
+                        size=textsize,
+                        color=ax0[ui].get_color(),
+                        bbox=dict(facecolor='white', alpha=0.7, edgecolor='none', pad=2)
+                    )
             ufig = 0.55
             # Add interpretations for U (left singular vectors)
             for ui in range(num_tokens):
