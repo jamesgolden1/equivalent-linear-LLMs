@@ -735,8 +735,11 @@ class JacobianAnalyzer:
                 Ui = np.argsort(normcol)
                 scoli = np.sort(normcol)
 
+                normrow = -np.abs(np.linalg.norm(jacobian_np[:, :], axis=1))
+                Vi = np.argsort(normrow)
+
                 ucoli = jacobian_np[:, :][:, Ui[:n_components]]
-                vrowi = jacobian_np[:, :][Ui[:n_components], :]
+                vrowi = jacobian_np[:, :][Vi[:n_components], :]
 
             scol.append(scoli)
             ucol.append(ucoli)
@@ -754,6 +757,10 @@ class JacobianAnalyzer:
             # Find sign for vectors
             uit = np.array(ucol[tkind])
             usigns = np.array([np.sign(onp @ (uit[:, ui]) / np.linalg.norm(uit[:, ui]).T) for ui in range(n_components)])
+
+            # Find sign for vectors
+            vit = np.array(vrow[tkind])
+            vsigns = np.array([np.sign(onp.T @ (vit[vi, :]) / np.linalg.norm(vit[vi, :])) for vi in range(n_components)])
 
             # Interpret vectors through model's token vocabulary
             for ii in range(n_components):
