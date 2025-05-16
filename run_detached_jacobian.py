@@ -65,9 +65,9 @@ def get_inputs():
         text = "The bridge out of Marin is the"
     
     dtype = args. dtype
-    if dtype == "float16"
+    if dtype == "float16":
         dtype = torch.float16
-    elif dtype = "float32"
+    elif dtype = "float32":
         dtype = torch.float32 
     else:
         dtype = torch.bfloat16  
