@@ -96,7 +96,7 @@ def main():
     # else: # llama_3_model model_forward already loaded by default
         # from models.llama_3.llama_3_forward import model_forward
     if "llama" not in model_name: 
-        setattr(JacobianAnalyzer, 'model_forward', model_forward, dtype=dtype)
+        setattr(JacobianAnalyzer, 'model_forward', model_forward)
     # JacobianAnalyzer.model_forward = staticmethod(model_forward)
 
     model_name_short = '_'+model_name.split('/')[1]
@@ -104,7 +104,7 @@ def main():
     # Initialize the analyzer
     try:
         print("Loading", model_name)
-        analyzer = JacobianAnalyzer(model_name=model_name)
+        analyzer = JacobianAnalyzer(model_name=model_name, dtype=dtype)
     except ValueError:
         raise ValueError("Invalid model name. Acceptable names include 'llama-3.2', 'llama-3.3', 'gemma-3-4b', 'qwen-3-8b', 'phi-4', 'mistral-ministral', etc.")
 
