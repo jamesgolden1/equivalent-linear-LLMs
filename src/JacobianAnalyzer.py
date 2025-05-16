@@ -129,6 +129,7 @@ class JacobianAnalyzer:
 
         # Layer-wise analysis containers (using defaultdict for more robust initialization)
         self.jacobian_layers = defaultdict(list)
+        self.jacobian_layers_to_end = defaultdict(list)
         self.uarr_layers = defaultdict(list)
         self.varr_layers = defaultdict(list)
         self.sarr_layers = defaultdict(list)
@@ -453,7 +454,7 @@ class JacobianAnalyzer:
 
         return jacobian_layerwise_i
 
-    def compute_jacobian_layerwise_i_to_end(self, i=None, key='layer'):
+    def compute_jacobian_layer_i_to_end(self, i=None, key='layer'):
         """
         Compute Jacobian for a specific layer considering only that layer's transformation.
 
@@ -466,15 +467,18 @@ class JacobianAnalyzer:
         """
         # Get input to the layer
         x_layer_input = self.model_forward(self.embeds, lsplit=i, key='layer_input')
-
-        model_forward_lsplit_end = partial(self.model_forward, lstart=i, lsplit=len(self.model.model.layers), key=key)
-        jacobian_layer_i = torch.autograd.functional.jacobian(
+        # model_forward_lsplit = partial(self.model_forward, lstart=i-1, lsplit=i, key=key)
+        model_forward_lsplit_end = partial(self.model_forward, lstart=i-1, lsplit=len(self.model.model.layers)-2, key=key)
+        # print("x input: ", x_layer_input)
+        # print("output: ",model_forward_lsplit_end(x_layer_input))
+        jacobian_layer_i_to_end = torch.autograd.functional.jacobian(
             model_forward_lsplit_end,
             x_layer_input,
             vectorize=True,
             strategy="reverse-mode"
         ).squeeze()
 
+        return jacobian_layer_i_to_end
 
     def find_nearest_token_batched(self, vector, top_k=1, batch_size=1000):
         """
@@ -527,7 +531,7 @@ class JacobianAnalyzer:
         return tokens
 
     def compute_jacobian_svd(self, n_components=128, svs=8, layers=False, layerwise=False,
-                            tokens_combined=False, token_list=None, li=None, key='layer'):
+                            tokens_combined=False, token_list=None, li=None, key='layer', transform_to_output=False):
         """
         Compute SVD on the Jacobian matrix and analyze singular vectors.
 
@@ -587,6 +591,10 @@ class JacobianAnalyzer:
                     n_iter='auto',
                     random_state=None
                 )
+                if transform_to_output:
+                    print("Transforming to output")
+                    jacobian_to_end_np = self.jacobian_layers_to_end[key][-1].cpu().detach().float().numpy()
+                    U = jacobian_to_end_np[:, tkind, :].squeeze()@U
             else:
                 U, Sigma, VT = randomized_svd(
                     jacobian_np[:, :],
@@ -601,7 +609,7 @@ class JacobianAnalyzer:
 
         # Analyze singular vectors
         self.usvec, self.vsvec = [], []
-        for tkind in tklist:
+        for tkind,tkval in enumerate(tklist):
             usvec, vsvec = [], []
 
             # Compute normalized output projection
@@ -629,7 +637,7 @@ class JacobianAnalyzer:
                 decoded_tokens = [self.tokenizer.decode(idx).replace('\n', '') for idx in top_token_indices]
                 dec_usvec = ' '.join(decoded_tokens)
 
-                print(f"Token {tkind}, U SV {ii}: {dec_usvec}")
+                print(f"Token {tkval}, U SV {ii}: {dec_usvec}")
                 usvec.append(dec_usvec)
 
                 if not tokens_combined:
@@ -639,7 +647,7 @@ class JacobianAnalyzer:
                     #     dec_vsvec = [self.tokenizer.convert_tokens_to_string([token.half()]) for token in self.find_nearest_token_batched(vvec, top_k=8)]
                     # else:
                     dec_vsvec = [self.tokenizer.convert_tokens_to_string([token]) for token in self.find_nearest_token_batched(vvec, top_k=8)]
-                    print(f"Token {tkind}, V SV {ii}: {dec_vsvec}\n")
+                    # print(f"Token {tkval}, V SV {ii}: {dec_vsvec}\n")
                     vsvec.append(dec_vsvec)
                 else:
                     vsvec.append([""])
@@ -785,7 +793,7 @@ class JacobianAnalyzer:
 
     def compute_jacobian_layers_svd(self, layerlist, tokens_combined=True, token_list=None,
                                    n_components=8, svs=1, key='layer', input_key='layer_input',
-                                   layer_mode='cumulative'):
+                                   layer_mode='cumulative', transform_to_output=False):
         """
         Compute SVD analysis across multiple layers.
 
@@ -811,15 +819,20 @@ class JacobianAnalyzer:
             if layer_mode == 'cumulative':
                 print(key, "layer", layeri)
                 self.jacobian_layers[key].append(self.compute_jacobian_layer_i(i=layeri, key=key).detach().cpu())
+                if transform_to_output:
+                    print("to output...")
+                    self.jacobian_layers_to_end[key].append(self.compute_jacobian_layer_i_to_end(i=layeri, key=key).detach().cpu())
                 self.compute_jacobian_svd(layers=True, n_components=n_components, svs=svs,
                                         tokens_combined=tokens_combined, token_list=token_list,
-                                        li=layeri, key=key)
+                                        li=layeri, key=key, transform_to_output=transform_to_output)
             else:
                 print(key, "layer", layeri, "layerwise")
                 self.jacobian_layers_layerwise[key].append(self.compute_jacobian_layerwise_i(i=layeri, key=key).detach().cpu())
+                if transform_to_output:
+                    self.jacobian_layers_to_end[key].append(self.compute_jacobian_layer_i_to_end(i=layeri, key=key).detach().cpu())
                 self.compute_jacobian_svd(layerwise=True, n_components=n_components, svs=svs,
                                         tokens_combined=tokens_combined, token_list=token_list,
-                                        li=layeri, key=key)
+                                        li=layeri, key=key, transform_to_output=transform_to_output)
             gc.collect()
             torch.cuda.empty_cache()
 
