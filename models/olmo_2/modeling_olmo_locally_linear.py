@@ -184,6 +184,10 @@ class Olmo2Attention(nn.Module):
         key_states = key_states.view(hidden_shape).transpose(1, 2)
         value_states = value_states.view(hidden_shape).transpose(1, 2)
 
+        if not self.training:
+            query_states = query_states.clone().detach()
+            key_states = key_states.clone().detach()
+
         cos, sin = position_embeddings
         query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin)
 
@@ -205,6 +209,10 @@ class Olmo2Attention(nn.Module):
                 )
             else:
                 attention_interface = ALL_ATTENTION_FUNCTIONS[self.config._attn_implementation]
+
+        if not self.training:
+            query_states = query_states.clone().detach()
+            key_states = key_states.clone().detach()
 
         if not self.training:
             attn_output, attn_weights = attention_interface(
