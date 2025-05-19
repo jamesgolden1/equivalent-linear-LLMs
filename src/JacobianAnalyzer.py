@@ -595,7 +595,7 @@ class JacobianAnalyzer:
                 )
                 if transform_to_output:
                     print("Transforming to output")
-                    jacobian_to_end_np = self.jacobian_layers_to_end[key][li].cpu().detach().float().numpy()
+                    jacobian_to_end_np = self.jacobian_layers_to_end[key][-1].cpu().detach().float().numpy()
                     U = jacobian_to_end_np[:, tkind, :].squeeze()@U
             else:
                 U, Sigma, VT = randomized_svd(
