@@ -83,11 +83,11 @@ class JacobianAnalyzer:
         shutil.copy(modeling_file_new, modeling_file) 
 
         # Olmo 2
-        # modeling_file_new = "models/olmo_2/modeling_olmo_locally_linear.py"
-        # modeling_file = transformers_file+"models/olmo2/modeling_olmo2.py"
-        # backup_file = transformers_file+"models/olmo2/modeling_olmo2_original.py"
-        # shutil.copy(modeling_file, backup_file)
-        # shutil.copy(modeling_file_new, modeling_file) 
+        modeling_file_new = "models/olmo_2/modeling_olmo_locally_linear.py"
+        modeling_file = transformers_file+"models/olmo2/modeling_olmo2.py"
+        backup_file = transformers_file+"models/olmo2/modeling_olmo2_original.py"
+        shutil.copy(modeling_file, backup_file)
+        shutil.copy(modeling_file_new, modeling_file) 
 
         # Mistral Ministral
         modeling_file_new = "models/mistral_ministral/modeling_mistral_ministral_locally_linear.py"
