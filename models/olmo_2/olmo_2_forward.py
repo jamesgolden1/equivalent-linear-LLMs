@@ -1,4 +1,4 @@
-def olmo2_forward(self, embeds, lstart=0, lsplit=None, key='layer'):
+def model_forward(self, embeds, lstart=0, lsplit=None, key='layer'):
     """
     Forward pass through OLMo 2 model layers with linearization for Jacobian analysis
 
