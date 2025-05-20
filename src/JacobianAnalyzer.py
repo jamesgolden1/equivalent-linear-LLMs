@@ -575,7 +575,7 @@ class JacobianAnalyzer:
         # Determine token range
         sarr, uarr, varr = [], [], []
 
-        if not tokens_combined and not layers:
+        if token_list is not None and not tokens_combined and not layers:
             tkend = jacobian_np.shape[1]
             tklist = list(range(tkend))
         elif token_list is not None:
