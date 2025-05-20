@@ -225,7 +225,8 @@ class JacobianAnalyzer:
 
     def model_forward(self, embeds, lstart=0, lsplit=None, key='layer'):
         """
-        Forward pass through model layers with linearization for Jacobian analysis.
+        Llama 3 forward pass through model layers with linearization for Jacobian analysis.
+        Other model_forward functions from the models folder must be loaded for non-Llama 3 models.
 
         Args:
             embeds: Input embeddings tensor of shape (batch_size, seq_length, hidden_size)
