@@ -1376,10 +1376,11 @@ class JacobianAnalyzer:
         Returns:
             str: The steered output text.
         """
+        from pprint import pprint
         with torch.no_grad():
             # Set default layer split point if not provided
             if lsplit is None:
-                lsplit = 3 * len(self.model.model.layers) // 4  # Default to 75% of model depth
+                lsplit = 2 * len(self.model.model.layers) // 3  # Default to 75% of model depth
                 
             # Compute Jacobian layers SVD if not already computed
             if not self.jacobian_layers['layer']:
@@ -1418,7 +1419,7 @@ class JacobianAnalyzer:
                 added = torch.cumsum(torch.stack(steering_vectors), 0)
 
                 # Start with original activations
-                steered_activations = layer_activations.copy()
+                steered_activations = layer_activations.clone()
                 
                 # Apply steering - scale the steering vector to maintain similar magnitudes
                 # This prevents the steering from dominating the generation completely
