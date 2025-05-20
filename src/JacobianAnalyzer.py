@@ -625,10 +625,11 @@ class JacobianAnalyzer:
             usigns = np.array([np.sign(onp @ (uit[:, ui]) / np.linalg.norm(uit[:, ui]).T) for ui in range(n_components)])
 
             # Interpret left singular vectors through model's token vocabulary
+            s_vector = sarr[tkind]
             for ii in range(svs):
                 # Project singular vector through the model's output layer
                 u_vector = torch.tensor(uarr[tkind][:, ii], dtype=self.model.lm_head.weight[0].dtype).to(self.device)
-
+                
                 if layers and len(self.model.model.layers) - 1 != li:
                     outrecon = -usigns[ii] * self.model.lm_head(self.model.model.norm(u_vector).to(self.model.lm_head.weight[0,0].device))
                 else:
@@ -639,7 +640,7 @@ class JacobianAnalyzer:
                 decoded_tokens = [self.tokenizer.decode(idx).replace('\n', '') for idx in top_token_indices]
                 dec_usvec = ' '.join(decoded_tokens)
 
-                print(f"Token {tkval}, U SV {ii}: {dec_usvec}")
+                print(f"Token {tkval}, U {ii}, mag={s_vector[ii]:.2f}: {dec_usvec}")
                 usvec.append(dec_usvec)
 
                 if not tokens_combined:
