@@ -1410,7 +1410,7 @@ class JacobianAnalyzer:
                 # Take modulo 8 to cycle through first 8 singular vectors if input is longer
                 steering_vectors = [
                     torch.matmul(
-                        self.jacobian_layers['layer'][-1][:, np.mod(ki, 8), :],
+                        self.jacobian_layers['layer'][-1][:, np.mod(ki, self.embeds.shape[1]), :],
                         new_embeds[0, ki, :].squeeze()
                     ) for ki in range(new_embeds.shape[1])
                 ]
