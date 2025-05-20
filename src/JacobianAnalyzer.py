@@ -1357,3 +1357,107 @@ class JacobianAnalyzer:
             plt.savefig(f'{filename}.svg', bbox_inches='tight')
 
         plt.show()
+
+
+    def apply_steering_operator(self, new_text="Here is a painting of the", tlen=24, lambda_w=1.028045295795, lsplit=None):
+        """
+        Applies a steering operator to guide text generation using computed Jacobian matrices.
+        
+        This function implements a text steering mechanism using the detached Jacobian matrices as 
+        steering operators to influence the model's output in a specific semantic direction.
+        
+        Args:
+            tlen (int): Number of tokens to generate.
+            new_text (str): Initial text prompt to steer.
+            lambda_w (float, optional): Weight factor for the steering influence. Defaults to 1.028045295795.
+            lsplit (int, optional): Layer index to split model processing. If None, defaults to 75% of model depth.
+                This determines where to inject the steering vector in the model's layer stack.
+        
+        Returns:
+            str: The steered output text.
+        """
+        with torch.no_grad():
+            # Set default layer split point if not provided
+            if lsplit is None:
+                lsplit = 3 * len(self.model.model.layers) // 4  # Default to 75% of model depth
+                
+            # Compute Jacobian layers SVD if not already computed
+            if not self.jacobian_layers['layer']:
+                layerlist = [lsplit]
+                # Calculate SVD of Jacobian for the first token with 32 components and 1 singular value
+                self.compute_jacobian_layers_svd(
+                    token_list=[0],
+                    tokens_combined=False,
+                    layerlist=layerlist,
+                    n_components=32,
+                    svs=1
+                )
+                
+            # Move Jacobian to GPU
+            self.jacobian_layers['layer'][-1] = self.jacobian_layers['layer'][-1].cuda()
+
+            # Generate tokens iteratively
+            for ti in range(tlen):
+                # Encode and embed the current text
+                input_tokens = self.tokenizer.encode(new_text, return_tensors='pt').cuda()
+                new_embeds = self.model.model.embed_tokens(input_tokens).detach()
+
+                # Forward pass up to the split layer to get intermediate activations
+                layer_activations = self.model_forward(new_embeds, lsplit=lsplit, key='layer_input')
+
+                # Calculate steering vector using Jacobian matrices
+                # Take modulo 8 to cycle through first 8 singular vectors if input is longer
+                steering_vectors = [
+                    torch.matmul(
+                        self.jacobian_layers['layer'][-1][:, np.mod(ki, 8), :],
+                        new_embeds[0, ki, :].squeeze()
+                    ) for ki in range(new_embeds.shape[1])
+                ]
+                
+                # Cumulative sum of steering vectors for all input tokens
+                added = torch.cumsum(torch.stack(steering_vectors), 0)
+
+                # Start with original activations
+                steered_activations = layer_activations.copy()
+                
+                # Apply steering - scale the steering vector to maintain similar magnitudes
+                # This prevents the steering from dominating the generation completely
+                steered_activations[-1] += torch.stack([
+                    lambda_w * added[ii] * torch.norm(steered_activations[0][ii]) / (2 * torch.norm(added[ii]))
+                    for ii in range(len(steered_activations[0]))
+                ])
+                
+                # Clean up to save memory
+                del added, layer_activations
+
+                # Complete the forward pass and apply language model head
+                # Note: Using negative values to find minimum logit (equivalent to finding maximum probability)
+                output_logits = -self.model.lm_head(
+                    self.model_forward(steered_activations, lstart=lsplit-1)
+                )
+
+                # Clean up more tensors to manage memory usage
+                del steered_activations, new_embeds
+                
+                # Get token with minimum negative logit (maximum probability)
+                next_token = torch.argmin(output_logits)
+                new_word = self.tokenizer.decode(next_token)
+                
+                # Alternative sampling strategies (commented out):
+                # new_word = self.tokenizer.decode(torch.argsort(output_logits)[0])  # Most likely token
+                # new_word = self.tokenizer.decode(torch.argsort(output_logits)[int(np.random.rand(1)[0]>.5)])  # Random from top 2
+                
+                del output_logits
+
+                # Force garbage collection and clear CUDA cache
+                gc.collect()
+                torch.cuda.empty_cache()
+                
+                # Append generated token to the output text
+                new_text = new_text + new_word
+                # Print token, removing any newlines
+                print(new_word.replace("\n", ""))
+                
+            # Print final output
+            pprint(new_text)
+            return new_text
