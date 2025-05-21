@@ -483,6 +483,9 @@ class JacobianAnalyzer:
 
         return jacobian_layer_i_to_end
 
+    def softmax(self, logits):
+        return np.exp(logits) / np.sum(exp_logits)
+
     def find_nearest_token_batched(self, vector, top_k=1, batch_size=1000):
         """
         Find the nearest tokens to a given vector in the embedding space.
@@ -638,7 +641,9 @@ class JacobianAnalyzer:
 
                 # Get top tokens based on projection
                 top_token_indices = torch.argsort(outrecon)[:8]
-                decoded_tokens = [self.tokenizer.decode(idx).replace('\n', '') for idx in top_token_indices]
+                top_token_probs = self.softmax(outrecon)[top_token_indices]
+                # decoded_tokens = [self.tokenizer.decode(idx).replace('\n', '') for idx in top_token_indices]
+                decoded_tokens = [f"{top_token_probs[ti]:.3f}"+': '+self.tokenizer.decode(idx).replace('\n', '') for ti,idx in enumerate(top_token_indices)]
                 dec_usvec = ' '.join(decoded_tokens)
 
                 print(f"Token {tkval}, U {ii}, mag={s_vector[ii]:.2f}: {dec_usvec}")
