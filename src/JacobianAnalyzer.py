@@ -641,7 +641,7 @@ class JacobianAnalyzer:
 
                 # Get top tokens based on projection
                 top_token_indices = torch.argsort(outrecon)[:8]
-                top_token_probs = self.softmax(outrecon)[top_token_indices]
+                top_token_probs = torch.softmax(-outrecon,dim=1)[top_token_indices]
                 # decoded_tokens = [self.tokenizer.decode(idx).replace('\n', '') for idx in top_token_indices]
                 decoded_tokens = [f"{top_token_probs[ti]:.3f}"+': '+self.tokenizer.decode(idx).replace('\n', '') for ti,idx in enumerate(top_token_indices)]
                 dec_usvec = ' '.join(decoded_tokens)
