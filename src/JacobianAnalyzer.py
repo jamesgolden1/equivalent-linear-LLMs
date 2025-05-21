@@ -357,8 +357,10 @@ class JacobianAnalyzer:
         ).squeeze()
 
         # Calculate Jacobian by token
+        if len(self.jacobian.shape)==2:
+            self.jacobian=self.jacobian.unsqueeze(1)
         self.jacobian_by_token = torch.stack([
-            torch.matmul(self.jacobian[:, ii, :], self.embeds[0, ii, :].squeeze())[:]
+            torch.matmul(self.jacobian[:, ii, :].squeeze(), self.embeds[0, ii, :].squeeze())[:]
             for ii in range(self.jacobian.shape[1])
         ])
 
@@ -574,7 +576,8 @@ class JacobianAnalyzer:
                 jacobian_np = self.jacobian.view([self.jacobian.shape[0], -1]).cpu().detach().float().numpy()
             else:
                 jacobian_np = self.jacobian.cpu().detach().float().numpy()
-
+        if len(jacobian_np.shape)==2:
+            jacobian_np = jacobian_np.unsqueeze(1)
         # Determine token range
         sarr, uarr, varr = [], [], []
 
@@ -641,9 +644,9 @@ class JacobianAnalyzer:
 
                 # Get top tokens based on projection
                 top_token_indices = torch.argsort(outrecon)[:8]
-                top_token_probs = torch.softmax(-outrecon,dim=1)[top_token_indices]
-                # decoded_tokens = [self.tokenizer.decode(idx).replace('\n', '') for idx in top_token_indices]
-                decoded_tokens = [f"{top_token_probs[ti]:.3f}"+': '+self.tokenizer.decode(idx).replace('\n', '') for ti,idx in enumerate(top_token_indices)]
+                # top_token_probs = torch.softmax(-outrecon,dim=0)[top_token_indices]
+                decoded_tokens = [self.tokenizer.decode(idx).replace('\n', '') for idx in top_token_indices]
+                # decoded_tokens = [f"{top_token_probs[ti]:.3e}"+':'+self.tokenizer.decode(idx).replace('\n', '') for ti,idx in enumerate(top_token_indices)]
                 dec_usvec = ' '.join(decoded_tokens)
 
                 print(f"Token {tkval}, U {ii}, mag={s_vector[ii]:.2f}: {dec_usvec}")
