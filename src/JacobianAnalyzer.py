@@ -223,7 +223,7 @@ class JacobianAnalyzer:
         self.embeds = self.outputs.hidden_states[0][0].detach().requires_grad_(True)
         self.embeds_predicted = self.outputs.hidden_states[-1][-1][0, -1]
 
-    def model_forward(self, embeds, lstart=0, lsplit=None, key='layer'):
+    def model_forward(self, embeds, lstart=0, lsplit=None, key='layer', transform_to_output=False):
         """
         Llama 3 forward pass through model layers with linearization for Jacobian analysis.
         Other model_forward functions from the models folder must be loaded for non-Llama 3 models.
@@ -327,7 +327,7 @@ class JacobianAnalyzer:
             hidden_states = residual + mlp_output
 
         # Apply final normalization if we processed all layers
-        if key != "layer_input" and li == lsplit - 1:
+        if key != "layer_input" and li == lsplit - 1 and not transform_to_output:
             hidden_states = self.model.model.norm(hidden_states)
 
         # Store final layer output
@@ -373,7 +373,7 @@ class JacobianAnalyzer:
         # print("model_forward_error allclose:",torch.allclose(self.embeds_predicted,self.model_forward(self.embeds)))
         print("detached Jacobian error:", self.linear_jacobian_output_error)
         # print("detached Jacobian all close:",torch.allclose(self.linear_jacobian_output, self.embeds_predicted))
-	
+  
         return self.linear_jacobian_output
 
     def compute_jacobian_nonlinear(self):
@@ -405,7 +405,7 @@ class JacobianAnalyzer:
 
         return self.nonlinear_jacobian_output
 
-    def compute_jacobian_layer_i(self, i=None, key='layer'):
+    def compute_jacobian_layer_i(self, i=None, key='layer', transform_to_output=False):
         """
         Compute Jacobian for a specific layer.
 
@@ -421,7 +421,8 @@ class JacobianAnalyzer:
 
         # Linear mode (eval)
         self.model.eval()
-        model_forward_lsplit = partial(self.model_forward, lsplit=i, key=key)
+        model_forward_lsplit = partial(self.model_forward, lsplit=i, key=key, transform_to_output=transform_to_output)
+        print("model_forward_output: ", model_forward_lsplit(self.embeds))
         jacobian_layer_i = torch.autograd.functional.jacobian(
             model_forward_lsplit,
             self.embeds,
@@ -431,7 +432,7 @@ class JacobianAnalyzer:
 
         return jacobian_layer_i
 
-    def compute_jacobian_layerwise_i(self, i=None, key='layer'):
+    def compute_jacobian_layerwise_i(self, i=None, key='layer', transform_to_output=False):
         """
         Compute Jacobian for a specific layer considering only that layer's transformation.
 
@@ -447,7 +448,8 @@ class JacobianAnalyzer:
 
         # Compute Jacobian for just this layer
         self.model.eval()
-        model_forward_lsplit = partial(self.model_forward, lstart=i-1, lsplit=i, key=key)
+        model_forward_lsplit = partial(self.model_forward, lstart=i-1, lsplit=i, key=key, transform_to_output=transform_to_output)
+        print("model_forward_output, layerwise: ", model_forward_lsplit(x_layer_input))
         jacobian_layerwise_i = torch.autograd.functional.jacobian(
             model_forward_lsplit,
             x_layer_input,
@@ -473,9 +475,10 @@ class JacobianAnalyzer:
         # Get input to the layer
         x_layer_input = self.model_forward(self.embeds, lsplit=i, key='layer_input')
         # model_forward_lsplit = partial(self.model_forward, lstart=i-1, lsplit=i, key=key)
-        model_forward_lsplit_end = partial(self.model_forward, lstart=i-1, lsplit= transform_to_last_layer, key=key)
-        # print("x input: ", x_layer_input)
-        # print("output: ",model_forward_lsplit_end(x_layer_input))
+        model_forward_lsplit_end = partial(self.model_forward, lstart=i-1, lsplit=transform_to_last_layer, key=key)
+        print("to end, x input: ", x_layer_input[0][-1])
+        print("to end, x input: ", self.model.model.norm(x_layer_input)[0][-1])
+        print("to end, output: ",model_forward_lsplit_end(x_layer_input))
         jacobian_layer_i_to_end = torch.autograd.functional.jacobian(
             model_forward_lsplit_end,
             x_layer_input,
@@ -576,8 +579,9 @@ class JacobianAnalyzer:
                 jacobian_np = self.jacobian.view([self.jacobian.shape[0], -1]).cpu().detach().float().numpy()
             else:
                 jacobian_np = self.jacobian.cpu().detach().float().numpy()
+        
         if len(jacobian_np.shape)==2:
-            jacobian_np = jacobian_np.unsqueeze(1)
+            jacobian_np = np.expand_dims(jacobian_np,axis=1)
         # Determine token range
         sarr, uarr, varr = [], [], []
 
@@ -603,6 +607,8 @@ class JacobianAnalyzer:
                 if transform_to_output:
                     print("Transforming to output")
                     jacobian_to_end_np = self.jacobian_layers_to_end[key][-1].cpu().detach().float().numpy()
+                    if len(jacobian_to_end_np.shape)==2:
+                        jacobian_to_end_np = np.expand_dims(jacobian_to_end_np,axis=1)
                     U = jacobian_to_end_np[:, tkind, :].squeeze()@U
             else:
                 U, Sigma, VT = randomized_svd(
@@ -637,10 +643,10 @@ class JacobianAnalyzer:
                 # Project singular vector through the model's output layer
                 u_vector = torch.tensor(uarr[tkind][:, ii], dtype=self.model.lm_head.weight[0].dtype).to(self.device)
                 
-                if layers and len(self.model.model.layers) - 1 != li:
-                    outrecon = -usigns[ii] * self.model.lm_head(self.model.model.norm(u_vector).to(self.model.lm_head.weight[0,0].device))
-                else:
-                    outrecon = -usigns[ii] * self.model.lm_head(u_vector.to(self.model.lm_head.weight[0,0].device))
+                # if layers and len(self.model.model.layers) - 1 != li:
+                #     outrecon = -usigns[ii] * self.model.lm_head(self.model.model.norm(u_vector).to(self.model.lm_head.weight[0,0].device))
+                # else:
+                outrecon = -usigns[ii] * self.model.lm_head(u_vector.to(self.model.lm_head.weight[0,0].device))
 
                 # Get top tokens based on projection
                 top_token_indices = torch.argsort(outrecon)[:8]
@@ -837,18 +843,18 @@ class JacobianAnalyzer:
         for layeri in layerlist:
             if layer_mode == 'cumulative':
                 print(key, "layer", layeri)
-                self.jacobian_layers[key].append(self.compute_jacobian_layer_i(i=layeri, key=key).detach().cpu())
+                self.jacobian_layers[key].append(self.compute_jacobian_layer_i(i=layeri, key=key, transform_to_output=transform_to_output).detach().cpu())
                 if transform_to_output:
                     print("to output...")
-                    self.jacobian_layers_to_end[key].append(self.compute_jacobian_layer_i_to_end(i=layeri-1, key=key, transform_to_last_layer=transform_to_last_layer).detach().cpu())
+                    self.jacobian_layers_to_end[key].append(self.compute_jacobian_layer_i_to_end(i=layeri, key=key, transform_to_last_layer=transform_to_last_layer).detach().cpu())
                 self.compute_jacobian_svd(layers=True, n_components=n_components, svs=svs,
                                         tokens_combined=tokens_combined, token_list=token_list,
                                         li=layeri, key=key, transform_to_output=transform_to_output)
             else:
                 print(key, "layer", layeri, "layerwise")
-                self.jacobian_layers_layerwise[key].append(self.compute_jacobian_layerwise_i(i=layeri, key=key).detach().cpu())
+                self.jacobian_layers_layerwise[key].append(self.compute_jacobian_layerwise_i(i=layeri, key=key, transform_to_output=transform_to_output).detach().cpu())
                 if transform_to_output:
-                    self.jacobian_layers_to_end[key].append(self.compute_jacobian_layer_i_to_end(i=layeri-1, key=key, transform_to_last_layer=transform_to_last_layer).detach().cpu())
+                    self.jacobian_layers_to_end[key].append(self.compute_jacobian_layer_i_to_end(i=layeri, key=key, transform_to_last_layer=transform_to_last_layer).detach().cpu())
                 self.compute_jacobian_svd(layerwise=True, n_components=n_components, svs=svs,
                                         tokens_combined=tokens_combined, token_list=token_list,
                                         li=layeri, key=key, transform_to_output=transform_to_output)
@@ -897,7 +903,7 @@ class JacobianAnalyzer:
         ax.legend(['Original Jacobian Reconstruction', 'Identity (locally linear)', 'Detached Jacobian Reconstruction'],'upper left')
 
         # Add title with error information
-        relative_error = np.std(outnplinear) / np.std(linear_out_np)	
+        relative_error = np.std(outnplinear) / np.std(linear_out_np)  
         ax.set_title(
             f'Model: {self.model_name}\n'
             f'{self.last_input_text} [[{self.output_token}]]\n'
