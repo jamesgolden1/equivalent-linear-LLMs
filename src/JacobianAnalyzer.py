@@ -134,9 +134,12 @@ class JacobianAnalyzer:
         self.varr_layers = defaultdict(list)
         self.sarr_layers = defaultdict(list)
         self.usvec_layers = defaultdict(list)
+        self.usvec_layers_to_output = defaultdict(list)
         self.vsvec_layers = defaultdict(list)
+        self.vsvec_layers_to_output = defaultdict(list)
         self.jac_layers = defaultdict(list)
         self.usigns_layers = defaultdict(list)
+        self.usigns_layers_to_output = defaultdict(list)
 
         # Layer-wise detached analysis containers
         self.jacobian_layers_layerwise = defaultdict(list)
@@ -144,9 +147,12 @@ class JacobianAnalyzer:
         self.varr_layers_layerwise = defaultdict(list)
         self.sarr_layers_layerwise = defaultdict(list)
         self.usvec_layers_layerwise = defaultdict(list)
+        self.usvec_layers_layerwise_to_output = defaultdict(list)
         self.vsvec_layers_layerwise = defaultdict(list)
+        self.vsvec_layers_layerwise_to_output = defaultdict(list)
         self.jac_layers_layerwise = defaultdict(list)
         self.usigns_layers_layerwise = defaultdict(list)
+        self.usigns_layers_layerwise_to_output = defaultdict(list)
 
         # Layer list for tracking
         self.layerlist = None
@@ -672,13 +678,23 @@ class JacobianAnalyzer:
 
             # Store results in appropriate container
             if layers:
-                self.usvec_layers[key].append(usvec)
-                self.vsvec_layers[key].append(vsvec)
-                self.usigns_layers[key].append(usigns)
+                if transform_to_output:
+                    self.usvec_layers_to_output[key].append(usvec)
+                    self.vsvec_layers_to_output[key].append(vsvec)
+                    self.usigns_layers_to_output[key].append(usigns)
+                else:
+                    self.usvec_layers[key].append(usvec)
+                    self.vsvec_layers[key].append(vsvec)
+                    self.usigns_layers[key].append(usigns)
             elif layerwise:
-                self.usvec_layers_layerwise[key].append(usvec)
-                self.vsvec_layers_layerwise[key].append(vsvec)
-                self.usigns_layers_layerwise[key].append(usigns)
+                if transform_to_output:
+                    self.usvec_layers_layerwise_to_output[key].append(usvec)
+                    self.vsvec_layers_layerwise_to_output[key].append(vsvec)
+                    self.usigns_layers_layerwise_to_output[key].append(usigns)
+                else:
+                    self.usvec_layers_layerwise[key].append(usvec)
+                    self.vsvec_layers_layerwise[key].append(vsvec)
+                    self.usigns_layers_layerwise[key].append(usigns)
             else:
                 self.usvec.append(usvec)
                 self.vsvec.append(vsvec)
