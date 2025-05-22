@@ -477,7 +477,7 @@ class JacobianAnalyzer:
         # model_forward_lsplit = partial(self.model_forward, lstart=i-1, lsplit=i, key=key)
         model_forward_lsplit_end = partial(self.model_forward, lstart=i-1, lsplit=transform_to_last_layer, key=key)
         print("to end, x input: ", x_layer_input[0][-1])
-        print("to end, x input: ", self.model.model.norm(x_layer_input)[0][-1])
+        # print("to end, x input: ", self.model.model.norm(x_layer_input)[0][-1])
         print("to end, output: ",model_forward_lsplit_end(x_layer_input))
         jacobian_layer_i_to_end = torch.autograd.functional.jacobian(
             model_forward_lsplit_end,
@@ -846,7 +846,7 @@ class JacobianAnalyzer:
                 self.jacobian_layers[key].append(self.compute_jacobian_layer_i(i=layeri, key=key, transform_to_output=transform_to_output).detach().cpu())
                 if transform_to_output:
                     print("to output...")
-                    self.jacobian_layers_to_end[key].append(self.compute_jacobian_layer_i_to_end(i=layeri, key=key, transform_to_last_layer=transform_to_last_layer).detach().cpu())
+                    self.jacobian_layers_to_end[key].append(self.compute_jacobian_layer_i_to_end(i=layeri+1, key=key, transform_to_last_layer=transform_to_last_layer).detach().cpu())
                 self.compute_jacobian_svd(layers=True, n_components=n_components, svs=svs,
                                         tokens_combined=tokens_combined, token_list=token_list,
                                         li=layeri, key=key, transform_to_output=transform_to_output)
@@ -854,7 +854,7 @@ class JacobianAnalyzer:
                 print(key, "layer", layeri, "layerwise")
                 self.jacobian_layers_layerwise[key].append(self.compute_jacobian_layerwise_i(i=layeri, key=key, transform_to_output=transform_to_output).detach().cpu())
                 if transform_to_output:
-                    self.jacobian_layers_to_end[key].append(self.compute_jacobian_layer_i_to_end(i=layeri, key=key, transform_to_last_layer=transform_to_last_layer).detach().cpu())
+                    self.jacobian_layers_to_end[key].append(self.compute_jacobian_layer_i_to_end(i=layeri+1, key=key, transform_to_last_layer=transform_to_last_layer).detach().cpu())
                 self.compute_jacobian_svd(layerwise=True, n_components=n_components, svs=svs,
                                         tokens_combined=tokens_combined, token_list=token_list,
                                         li=layeri, key=key, transform_to_output=transform_to_output)
