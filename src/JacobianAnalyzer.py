@@ -13,7 +13,7 @@ from sklearn.utils.extmath import randomized_svd
 import warnings
 warnings.filterwarnings("ignore", message="Glyph .* missing from current font\.")
 
-import JacobianSingularVectorPowerIteration
+from . import JacobianSingularVectorPowerIteration
 
 class JacobianAnalyzer:
     """
@@ -993,9 +993,9 @@ class JacobianAnalyzer:
        if fast_approx: # use power iteration for fast approximation of top singular vectors
 
             for layeri in layerlist:
-                if layer_mode == 'cumulative, fast':
+                if layer_mode == 'cumulative':
                     print(key, "layer", layeri)
-                    jacobian_layer_i_svd = self.compute_jacobian_svd_fast_layer_i(i=layeri, key=key, transform_to_output=transform_to_output).detach().cpu()
+                    jacobian_layer_i_svd = self.compute_jacobian_svd_fast_layer_i(i=layeri, key=key, transform_to_output=transform_to_output)
 
                     self.uarr_layers[key].append(jacobian_layer_i_svd[0].detach().cpu().float().numpy())
                     self.sarr_layers[key].append(jacobian_layer_i_svd[1].detach().cpu().float().numpy())
@@ -1003,7 +1003,7 @@ class JacobianAnalyzer:
 
                     # if transform_to_output:
                     #     print("to output...")
-                    #     self.jacobian_layers_to_end[key].append(self.compute_jacobian_svd_fast_layer_i_to_end(i=layeri+1, key=key, transform_to_last_layer=transform_to_last_layer).detach().cpu())
+                    #     self.jacobian_layers_to_end[key].append(self.compute_jacobian_svd_fast_layer_i_to_end(i=layeri+1, key=key, transform_to_last_layer=transform_to_last_layer))
                     
                     self.compute_jacobian_svd(layers=True, n_components=n_components, svs=svs,
                                             tokens_combined=tokens_combined, token_list=token_list,
@@ -1011,14 +1011,14 @@ class JacobianAnalyzer:
         
                 else:
                     print(key, "layer", layeri, "layerwise, fast")
-                    self.jacobian_layers_layerwise[key].append(self.compute_jacobian_svd_fast_layerwise_i(i=layeri, key=key, transform_to_output=transform_to_output).detach().cpu())
+                    self.jacobian_layers_layerwise[key].append(self.compute_jacobian_svd_fast_layerwise_i(i=layeri, key=key, transform_to_output=transform_to_output))
 
                     self.uarr_layers_layerwise[key].append(jacobian_layer_i_svd[0].detach().cpu().float().numpy())
                     self.sarr_layers_layerwise[key].append(jacobian_layer_i_svd[1].detach().cpu().float().numpy())
                     self.varr_layers_layerwise[key].append(jacobian_layer_i_svd[2].detach().cpu().float().numpy())
 
                     # if transform_to_output:
-                    #     self.jacobian_layers_to_end[key].append(self.compute_jacobian_layer_i_to_end(i=layeri+1, key=key, transform_to_last_layer=transform_to_last_layer).detach().cpu())
+                    #     self.jacobian_layers_to_end[key].append(self.compute_jacobian_layer_i_to_end(i=layeri+1, key=key, transform_to_last_layer=transform_to_last_layer))
                     
                     self.compute_jacobian_svd(layerwise=True, n_components=n_components, svs=svs,
                                             tokens_combined=tokens_combined, token_list=token_list,
