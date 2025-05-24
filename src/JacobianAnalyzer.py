@@ -13,6 +13,8 @@ from sklearn.utils.extmath import randomized_svd
 import warnings
 warnings.filterwarnings("ignore", message="Glyph .* missing from current font\.")
 
+import JacobianSingularVectorPowerIteration
+
 class JacobianAnalyzer:
     """
     A class for analyzing the Jacobian of language models to understand their behavior.
@@ -476,6 +478,8 @@ class JacobianAnalyzer:
         Returns:
             Tensor: Layer-specific Jacobian
         """
+        # Linear mode (eval)
+        self.model.eval()
         if transform_to_last_layer is None:
             transform_to_last_layer=len(self.model.model.layers)-1 
         # Get input to the layer
@@ -493,6 +497,122 @@ class JacobianAnalyzer:
         ).squeeze()
 
         return jacobian_layer_i_to_end
+
+    def compute_jacobian_svd_fast_layer_i(self, i=None, key='layer', transform_to_output=False):
+        """
+        Compute Jacobian for a specific layer.
+
+        Args:
+            i (int, optional): Layer index. If None, uses all layers.
+            key (str): Type of output to get from the layer.
+
+        Returns:
+            Tensor: Jacobian for the specified layer
+        """
+        if i is None:
+            i = len(self.model.model.layers)
+
+        # Linear mode (eval)
+        self.model.eval()
+
+        model_forward_lsplit = partial(self.model_forward, lsplit=i, key=key, transform_to_output=transform_to_output)
+        print("model_forward_output: ", model_forward_lsplit(self.embeds))
+
+        jacobian_svd_layer_i = JacobianSingularVectorPowerIteration.jacobian_svd_vectorized(
+            model_forward_lsplit,
+            self.embeds,
+            num_singular_vectors=4,
+            strategy='randomized',
+            per_token=True,
+            num_iter=6,         # Fewer power iterations for speed (default is 4)
+            oversampling=40,     # Less oversampling for speed (default is 10)
+            disable_flash_attn=True,
+            debug=True
+        )
+
+        return jacobian_svd_layer_i
+
+    def compute_jacobian_svd_fast_layerwise_i(self, i=None, key='layer', transform_to_output=False):
+        """
+        Compute Jacobian for a specific layer.
+
+        Args:
+            i (int, optional): Layer index. If None, uses all layers.
+            key (str): Type of output to get from the layer.
+
+        Returns:
+            Tensor: Jacobian for the specified layer
+        """
+        if i is None:
+            i = len(self.model.model.layers)
+
+        # Linear mode (eval)
+        self.model.eval()
+
+        # Get input to the layer
+        x_layer_input = self.model_forward(self.embeds, lsplit=i, key='layer_input')
+
+        # Compute Jacobian for just this layer
+        model_forward_lsplit = partial(self.model_forward, lstart=i-1, lsplit=i, key=key, transform_to_output=transform_to_output)
+
+        jacobian_svd_layerwise_i = JacobianSingularVectorPowerIteration.jacobian_svd_vectorized(
+            model_forward_lsplit,
+            x_layer_input,
+            num_singular_vectors=4,
+            strategy='randomized',
+            per_token=True,
+            num_iter=6,         # Fewer power iterations for speed (default is 4)
+            oversampling=40,     # Less oversampling for speed (default is 10)
+            disable_flash_attn=True,
+            debug=True
+        )
+
+        return jacobian_svd_layerwise_i
+
+    def compute_jacobian_svd_fast_layer_i_to_end(self, i=None, key='layer', transform_to_output=False):
+        """
+        Compute Jacobian for a specific layer.
+
+        Args:
+            i (int, optional): Layer index. If None, uses all layers.
+            key (str): Type of output to get from the layer.
+
+        Returns:
+            Tensor: Jacobian for the specified layer
+        """
+        if i is None:
+            i = len(self.model.model.layers)
+
+        # Linear mode (eval)
+        self.model.eval()
+
+        if transform_to_last_layer is None:
+            transform_to_last_layer=len(self.model.model.layers)-1 
+
+        # Get input to the layer
+        x_layer_input = self.model_forward(self.embeds, lsplit=i, key='layer_input')
+
+        # model_forward_lsplit = partial(self.model_forward, lstart=i-1, lsplit=i, key=key)
+        model_forward_lsplit_end = partial(self.model_forward, lstart=i-1, lsplit=transform_to_last_layer, key=key)
+
+        print("to end, x input: ", x_layer_input[0][-1])
+        # print("to end, x input: ", self.model.model.norm(x_layer_input)[0][-1])
+
+        print("to end, output: ",model_forward_lsplit_end(x_layer_input))
+
+        jacobian_svd_layer_i_to_end = JacobianSingularVectorPowerIteration.jacobian_svd_vectorized(
+            model_forward_lsplit_end,
+            x_layer_input,
+            num_singular_vectors=4,
+            strategy='randomized',
+            per_token=True,
+            num_iter=6,         # Fewer power iterations for speed (default is 4)
+            oversampling=40,     # Less oversampling for speed (default is 10)
+            disable_flash_attn=True,
+            debug=True
+        )
+
+        return jacobian_svd_layer_i_to_end
 
     def softmax(self, logits):
         return np.exp(logits) / np.sum(exp_logits)
@@ -548,7 +668,7 @@ class JacobianAnalyzer:
         return tokens
 
     def compute_jacobian_svd(self, n_components=128, svs=8, layers=False, layerwise=False,
-                            tokens_combined=False, token_list=None, li=None, key='layer', transform_to_output=False):
+                            tokens_combined=False, token_list=None, li=None, key='layer', transform_to_output=False, fast_approx=False):
         """
         Compute SVD on the Jacobian matrix and analyze singular vectors.
 
@@ -569,64 +689,78 @@ class JacobianAnalyzer:
         if not hasattr(self, 'linear_jacobian_output'):
             raise ValueError("Jacobian has not been computed. Run compute_jacobian() first.")
 
-        # Select the appropriate Jacobian based on parameters
-        if layers:
-            if tokens_combined:
-                jacobian_np = self.jacobian_layers[key][-1].view([self.jacobian_layers[key][-1].shape[0], -1]).cpu().detach().float().numpy()
+        if not fast_approx:
+            # Select the appropriate Jacobian based on parameters
+            if layers:
+                if tokens_combined:
+                    jacobian_np = self.jacobian_layers[key][-1].view([self.jacobian_layers[key][-1].shape[0], -1]).cpu().detach().float().numpy()
+                else:
+                    jacobian_np = self.jacobian_layers[key][-1].cpu().detach().float().numpy()
+            elif layerwise:
+                if tokens_combined:
+                    jacobian_np = self.jacobian_layers_layerwise[key][-1].view([self.jacobian_layers_layerwise[key][-1].shape[0], -1]).cpu().detach().float().numpy()
+                else:
+                    jacobian_np = self.jacobian_layers_layerwise[key][-1].cpu().detach().float().numpy()
             else:
-                jacobian_np = self.jacobian_layers[key][-1].cpu().detach().float().numpy()
-        elif layerwise:
-            if tokens_combined:
-                jacobian_np = self.jacobian_layers_layerwise[key][-1].view([self.jacobian_layers_layerwise[key][-1].shape[0], -1]).cpu().detach().float().numpy()
-            else:
-                jacobian_np = self.jacobian_layers_layerwise[key][-1].cpu().detach().float().numpy()
-        else:
-            if tokens_combined:
-                jacobian_np = self.jacobian.view([self.jacobian.shape[0], -1]).cpu().detach().float().numpy()
-            else:
-                jacobian_np = self.jacobian.cpu().detach().float().numpy()
-        
-        if len(jacobian_np.shape)==2:
-            jacobian_np = np.expand_dims(jacobian_np,axis=1)
-        # Determine token range
-        sarr, uarr, varr = [], [], []
+                if tokens_combined:
+                    jacobian_np = self.jacobian.view([self.jacobian.shape[0], -1]).cpu().detach().float().numpy()
+                else:
+                    jacobian_np = self.jacobian.cpu().detach().float().numpy()
+            
+            if len(jacobian_np.shape)==2:
+                jacobian_np = np.expand_dims(jacobian_np,axis=1)
+            # Determine token range
+            sarr, uarr, varr = [], [], []
 
-        if token_list is not None and not tokens_combined and not layers:
-            tkend = jacobian_np.shape[1]
-            tklist = list(range(tkend))
-        elif token_list is not None:
-            tklist = token_list
-        else:
-            tkend = 1
-            tklist = [0]
-
-        # Compute SVD for each token position
-        for tkind in tklist:
-            print(f"Computing SVD for token position {tkind}")
-            if not tokens_combined:
-                U, Sigma, VT = randomized_svd(
-                    jacobian_np[:, tkind, :],
-                    n_components=n_components,
-                    n_iter='auto',
-                    random_state=None
-                )
-                if transform_to_output:
-                    print("Transforming to output")
-                    jacobian_to_end_np = self.jacobian_layers_to_end[key][-1].cpu().detach().float().numpy()
-                    if len(jacobian_to_end_np.shape)==2:
-                        jacobian_to_end_np = np.expand_dims(jacobian_to_end_np,axis=1)
-                    U = jacobian_to_end_np[:, tkind, :].squeeze()@U
+            if token_list is not None and not tokens_combined and not layers:
+                tkend = jacobian_np.shape[1]
+                tklist = list(range(tkend))
+            elif token_list is not None:
+                tklist = token_list
             else:
-                U, Sigma, VT = randomized_svd(
-                    jacobian_np[:, :],
-                    n_components=n_components,
-                    n_iter='auto',
-                    random_state=None,
-                    flip_sign=False
-                )
-            sarr.append(Sigma)
-            uarr.append(U)
-            varr.append(VT)
+                # tkend = 1
+                # tklist = [0]
+                tkend = jacobian_np.shape[1]
+                tklist = list(range(tkend))
+
+            # Compute SVD for each token position
+            for tkind in tklist:
+                print(f"Computing SVD for token position {tkind}")
+                if not tokens_combined:
+                    U, Sigma, VT = randomized_svd(
+                        jacobian_np[:, tkind, :],
+                        n_components=n_components,
+                        n_iter='auto',
+                        random_state=None
+                    )
+                    if transform_to_output:
+                        print("Transforming to output")
+                        jacobian_to_end_np = self.jacobian_layers_to_end[key][-1].cpu().detach().float().numpy()
+                        if len(jacobian_to_end_np.shape)==2:
+                            jacobian_to_end_np = np.expand_dims(jacobian_to_end_np,axis=1)
+                        U = jacobian_to_end_np[:, tkind, :].squeeze()@U
+                else:
+                    U, Sigma, VT = randomized_svd(
+                        jacobian_np[:, :],
+                        n_components=n_components,
+                        n_iter='auto',
+                        random_state=None,
+                        flip_sign=False
+                    )
+                sarr.append(Sigma)
+                uarr.append(U)
+                varr.append(VT)
+
+        else: # fast_approx, svd already computed
+            if layerwise:
+                sarr = self.sarr_layers_layerwise[key][-1]
+                uarr = self.uarr_layers_layerwise[key][-1]
+                varr = self.varr_layers_layerwise[key][-1]
+
+            else: # layers:
+                sarr = self.sarr_layers[key][-1]
+                uarr = self.uarr_layers[key][-1]
+                varr = self.varr_layers[key][-1]
 
         # Analyze singular vectors
         self.usvec, self.vsvec = [], []
@@ -834,7 +968,7 @@ class JacobianAnalyzer:
 
     def compute_jacobian_layers_svd(self, layerlist, tokens_combined=True, token_list=None,
                                    n_components=8, svs=1, key='layer', input_key='layer_input',
-                                   layer_mode='cumulative', transform_to_output=False, transform_to_last_layer=None):
+                                   layer_mode='cumulative', transform_to_output=False, transform_to_last_layer=None, fast_approx=True):
         """
         Compute SVD analysis across multiple layers.
 
@@ -856,24 +990,59 @@ class JacobianAnalyzer:
         if token_list is None:
             token_list = [0]
 
-        for layeri in layerlist:
-            if layer_mode == 'cumulative':
-                print(key, "layer", layeri)
-                self.jacobian_layers[key].append(self.compute_jacobian_layer_i(i=layeri, key=key, transform_to_output=transform_to_output).detach().cpu())
-                if transform_to_output:
-                    print("to output...")
-                    self.jacobian_layers_to_end[key].append(self.compute_jacobian_layer_i_to_end(i=layeri+1, key=key, transform_to_last_layer=transform_to_last_layer).detach().cpu())
-                self.compute_jacobian_svd(layers=True, n_components=n_components, svs=svs,
-                                        tokens_combined=tokens_combined, token_list=token_list,
-                                        li=layeri, key=key, transform_to_output=transform_to_output)
-            else:
-                print(key, "layer", layeri, "layerwise")
-                self.jacobian_layers_layerwise[key].append(self.compute_jacobian_layerwise_i(i=layeri, key=key, transform_to_output=transform_to_output).detach().cpu())
-                if transform_to_output:
-                    self.jacobian_layers_to_end[key].append(self.compute_jacobian_layer_i_to_end(i=layeri+1, key=key, transform_to_last_layer=transform_to_last_layer).detach().cpu())
-                self.compute_jacobian_svd(layerwise=True, n_components=n_components, svs=svs,
-                                        tokens_combined=tokens_combined, token_list=token_list,
-                                        li=layeri, key=key, transform_to_output=transform_to_output)
+       if fast_approx: # use power iteration for fast approximation of top singular vectors
+
+            for layeri in layerlist:
+                if layer_mode == 'cumulative, fast':
+                    print(key, "layer", layeri)
+                    jacobian_layer_i_svd = self.compute_jacobian_svd_fast_layer_i(i=layeri, key=key, transform_to_output=transform_to_output).detach().cpu()
+
+                    self.uarr_layers[key].append(jacobian_layer_i_svd[0].detach().cpu().float().numpy())
+                    self.sarr_layers[key].append(jacobian_layer_i_svd[1].detach().cpu().float().numpy())
+                    self.varr_layers[key].append(jacobian_layer_i_svd[2].detach().cpu().float().numpy())
+
+                    # if transform_to_output:
+                    #     print("to output...")
+                    #     self.jacobian_layers_to_end[key].append(self.compute_jacobian_svd_fast_layer_i_to_end(i=layeri+1, key=key, transform_to_last_layer=transform_to_last_layer).detach().cpu())
+                    
+                    self.compute_jacobian_svd(layers=True, n_components=n_components, svs=svs,
+                                            tokens_combined=tokens_combined, token_list=token_list,
+                                            li=layeri, key=key, transform_to_output=transform_to_output, fast_approx=fast_approx)   
+        
+                else:
+                    print(key, "layer", layeri, "layerwise, fast")
+                    self.jacobian_layers_layerwise[key].append(self.compute_jacobian_svd_fast_layerwise_i(i=layeri, key=key, transform_to_output=transform_to_output).detach().cpu())
+
+                    self.uarr_layers_layerwise[key].append(jacobian_layer_i_svd[0].detach().cpu().float().numpy())
+                    self.sarr_layers_layerwise[key].append(jacobian_layer_i_svd[1].detach().cpu().float().numpy())
+                    self.varr_layers_layerwise[key].append(jacobian_layer_i_svd[2].detach().cpu().float().numpy())
+
+                    # if transform_to_output:
+                    #     self.jacobian_layers_to_end[key].append(self.compute_jacobian_layer_i_to_end(i=layeri+1, key=key, transform_to_last_layer=transform_to_last_layer).detach().cpu())
+                    
+                    self.compute_jacobian_svd(layerwise=True, n_components=n_components, svs=svs,
+                                            tokens_combined=tokens_combined, token_list=token_list,
+                                            li=layeri, key=key, transform_to_output=transform_to_output, fast_approx=fast_approx)
+        else: # full jacobian and truncated svd
+
+            for layeri in layerlist:
+                if layer_mode == 'cumulative':
+                    print(key, "layer", layeri)
+                    self.jacobian_layers[key].append(self.compute_jacobian_layer_i(i=layeri, key=key, transform_to_output=transform_to_output).detach().cpu())
+                    if transform_to_output:
+                        print("to output...")
+                        self.jacobian_layers_to_end[key].append(self.compute_jacobian_layer_i_to_end(i=layeri+1, key=key, transform_to_last_layer=transform_to_last_layer).detach().cpu())
+                    self.compute_jacobian_svd(layers=True, n_components=n_components, svs=svs,
+                                            tokens_combined=tokens_combined, token_list=token_list,
+                                            li=layeri, key=key, transform_to_output=transform_to_output)
+                else:
+                    print(key, "layer", layeri, "layerwise")
+                    self.jacobian_layers_layerwise[key].append(self.compute_jacobian_layerwise_i(i=layeri, key=key, transform_to_output=transform_to_output).detach().cpu())
+                    if transform_to_output:
+                        self.jacobian_layers_to_end[key].append(self.compute_jacobian_layer_i_to_end(i=layeri+1, key=key, transform_to_last_layer=transform_to_last_layer).detach().cpu())
+                    self.compute_jacobian_svd(layerwise=True, n_components=n_components, svs=svs,
+                                            tokens_combined=tokens_combined, token_list=token_list,
+                                            li=layeri, key=key, transform_to_output=transform_to_output)
             gc.collect()
             torch.cuda.empty_cache()
 
