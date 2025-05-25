@@ -1160,8 +1160,11 @@ def randomized_svd_jacobian_vectorized(func, inputs, num_singular_vectors=5, num
         if stabilize:
             # QR decomposition requires at least float32
             Omega, _ = torch.linalg.qr(Omega)
-
+        # Force CUDA synchronization
+        if torch.cuda.is_available() and device.type == 'cuda':
+            torch.cuda.synchronize()
         # Memory cleanup after initialization
+        del _ 
         gc.collect()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
@@ -1667,23 +1670,23 @@ def high_accuracy_svd(func, inputs, num_singular_vectors=5, num_iter=8, oversamp
 
         return U, S, V
 
-
-def _create_vectorized_matrix_vector_functions(func, inputs, input_shape, output_shape,
+def _create_vectorized_matrix_vector_functions(func, inputs, input_shape, output_shape, 
                                             input_dim, output_dim, debug=False):
     """
-    Create vectorized JVP and VJP functions using vmap.
-
+    Create vectorized JVP and VJP functions using vmap with aggressive memory management.
+    
     This function creates JVP and VJP functions that operate on entire matrices at once,
-    rather than processing each column individually.
+    rather than processing each column individually, with careful memory cleanup.
     """
-
+    import gc
+    
     # Keep original dtype for model compatibility
     original_dtype = inputs.dtype if isinstance(inputs, torch.Tensor) else inputs[0].dtype
     needs_conversion = original_dtype in [torch.bfloat16, torch.float16]
-
+    
     if needs_conversion and debug:
         print(f"Will convert to float32 only for linear algebra operations (model uses: {original_dtype})")
-
+    
     # Create flattened function that matches jacobian() exactly
     def flattened_func(flat_inputs):
         try:
@@ -1697,9 +1700,9 @@ def _create_vectorized_matrix_vector_functions(func, inputs, input_shape, output
                     shaped_inputs.append(flat_inputs[offset:offset+size].reshape(shape))
                     offset += size
                 shaped_inputs = tuple(shaped_inputs)
-
+            
             outputs = func(shaped_inputs)
-
+            
             if isinstance(outputs, torch.Tensor):
                 return outputs.flatten()
             else:
@@ -1709,7 +1712,7 @@ def _create_vectorized_matrix_vector_functions(func, inputs, input_shape, output
                 # This is likely an embedding function issue with BFloat16 inputs
                 if debug:
                     print("Converting to float32 for embedding function compatibility.")
-
+                
                 # Convert inputs to float32 for embedding compatibility
                 if isinstance(inputs, torch.Tensor):
                     shaped_inputs = flat_inputs.reshape(input_shape).float()
@@ -1721,9 +1724,9 @@ def _create_vectorized_matrix_vector_functions(func, inputs, input_shape, output
                         shaped_inputs.append(flat_inputs[offset:offset+size].reshape(shape).float())
                         offset += size
                     shaped_inputs = tuple(shaped_inputs)
-
+                
                 outputs = func(shaped_inputs)
-
+                
                 if isinstance(outputs, torch.Tensor):
                     return outputs.flatten()
                 else:
@@ -1731,75 +1734,146 @@ def _create_vectorized_matrix_vector_functions(func, inputs, input_shape, output
             else:
                 # Re-raise if it's not the specific error we're handling
                 raise
-
+    
     # Create flattened inputs in original dtype
     if isinstance(inputs, torch.Tensor):
         flat_inputs = inputs.flatten().requires_grad_(True)
     else:
         flat_inputs = torch.cat([inp.flatten() for inp in inputs]).requires_grad_(True)
-
-    # Define a function that computes JVP for a single vector
+    
+    # Define a function that computes JVP for a single vector with memory cleanup
     def jvp_single(v):
+        # Convert to model dtype if needed
         if needs_conversion:
             v_model = v.to(original_dtype)
         else:
             v_model = v
-
-        _, result = jvp(flattened_func, (flat_inputs,), (v_model,))
-
-        if needs_conversion:
-            result = result.float()
-        return result
-
-    # Define a function that computes VJP for a single vector
+        
+        # Compute JVP
+        with torch.no_grad():  # ← IMPORTANT: Prevent gradient accumulation outside JVP
+            torch.cuda.empty_cache() if torch.cuda.is_available() else None
+            
+        # Compute JVP with explicit cleanup
+        try:
+            # Perform the actual JVP operation (this needs gradients)
+            _, result = jvp(flattened_func, (flat_inputs,), (v_model,))
+            
+            # Convert result to computation precision if needed
+            if needs_conversion:
+                result = result.float()
+                
+            # Detach result to prevent gradient graph buildup
+            result = result.detach()  # ← CRITICAL: Break gradient graph here
+            
+            return result
+        except Exception as e:
+            # Clean up on error
+            torch.cuda.empty_cache() if torch.cuda.is_available() else None
+            gc.collect()
+            raise e
+    
+    # Define a function that computes VJP for a single vector with memory cleanup
     def vjp_single(u):
+        # Convert to model dtype if needed
         if needs_conversion:
             u_model = u.to(original_dtype)
         else:
             u_model = u
-
-        _, vjp_fn = vjp(flattened_func, flat_inputs)
-        result = vjp_fn(u_model)
-
-        if isinstance(result, tuple):
-            result = result[0]
-
-        if needs_conversion:
-            result = result.float()
-        return result
-
+            
+        # Compute VJP
+        with torch.no_grad():  # ← IMPORTANT: Prevent gradient accumulation outside VJP
+            torch.cuda.empty_cache() if torch.cuda.is_available() else None
+            
+        # Compute VJP with explicit cleanup
+        try:
+            # Create VJP function
+            _, vjp_fn = vjp(flattened_func, flat_inputs)
+            
+            # Apply VJP function to get result
+            result = vjp_fn(u_model)
+            
+            # Extract first element if tuple
+            if isinstance(result, tuple):
+                result = result[0]
+                
+            # Convert result to computation precision if needed
+            if needs_conversion:
+                result = result.float()
+                
+            # Detach result to prevent gradient graph buildup
+            result = result.detach()  # ← CRITICAL: Break gradient graph here
+            
+            return result
+        except Exception as e:
+            # Clean up on error
+            torch.cuda.empty_cache() if torch.cuda.is_available() else None
+            gc.collect()
+            raise e
+    
     # Vectorized versions that operate on matrices (each column is a vector)
+    # Using explicit no_grad to prevent gradient buildup
     def jvp_matrix(matrix):
         """Apply JVP to each column of the matrix and return results as a matrix."""
         # matrix shape: [input_dim, num_cols]
-        # Transpose to get [num_cols, input_dim] for vmap's expected in_dims=0
-        matrix_t = matrix.T
-
-        # Use vmap to apply jvp_single to each row of matrix_t
-        # This effectively applies jvp to each column of the original matrix
-        results_t = vmap(jvp_single)(matrix_t)
-
-        # results_t shape: [num_cols, output_dim]
-        # Transpose back to get [output_dim, num_cols]
-        return results_t.T
-
+        with torch.no_grad():  # ← IMPORTANT: Prevent gradient accumulation around vmap
+            # Transpose to get [num_cols, input_dim] for vmap's expected in_dims=0
+            matrix_t = matrix.T
+            
+            # Use vmap to apply jvp_single to each row of matrix_t
+            # This effectively applies jvp to each column of the original matrix
+            results_t = vmap(jvp_single)(matrix_t)
+            
+            # results_t shape: [num_cols, output_dim]
+            # Transpose back to get [output_dim, num_cols]
+            result = results_t.T
+            
+            # Force detach to ensure no gradient information is retained
+            result = result.detach()  # ← Extra safety: Ensure result is detached
+            
+            # Clean up intermediate tensors
+            del matrix_t, results_t  # ← Delete intermediate tensors explicitly
+            torch.cuda.empty_cache() if torch.cuda.is_available() else None
+            
+            return result
+    
     def vjp_matrix(matrix):
         """Apply VJP to each column of the matrix and return results as a matrix."""
         # matrix shape: [output_dim, num_cols]
-        # Transpose to get [num_cols, output_dim] for vmap's expected in_dims=0
-        matrix_t = matrix.T
-
-        # Use vmap to apply vjp_single to each row of matrix_t
-        # This effectively applies vjp to each column of the original matrix
-        results_t = vmap(vjp_single)(matrix_t)
-
-        # results_t shape: [num_cols, input_dim]
-        # Transpose back to get [input_dim, num_cols]
-        return results_t.T
-
+        with torch.no_grad():  # ← IMPORTANT: Prevent gradient accumulation around vmap
+            # Transpose to get [num_cols, output_dim] for vmap's expected in_dims=0
+            matrix_t = matrix.T
+            
+            # Use vmap to apply vjp_single to each row of matrix_t
+            # This effectively applies vjp to each column of the original matrix
+            results_t = vmap(vjp_single)(matrix_t)
+            
+            # results_t shape: [num_cols, input_dim]
+            # Transpose back to get [input_dim, num_cols]
+            result = results_t.T
+            
+            # Force detach to ensure no gradient information is retained
+            result = result.detach()  # ← Extra safety: Ensure result is detached
+            
+            # Clean up intermediate tensors
+            del matrix_t, results_t  # ← Delete intermediate tensors explicitly
+            torch.cuda.empty_cache() if torch.cuda.is_available() else None
+            
+            return result
+    
     if debug:
         print("Created vectorized matrix-vector product functions with vmap")
-
+    
+    # Clean up input tensors we don't need anymore
+    if not isinstance(inputs, torch.Tensor):
+        for inp in inputs:
+            # Release any non-essential references
+            if hasattr(inp, '_grad_fn') and inp._grad_fn is not None:
+                inp._grad_fn = None  # ← Break potential reference cycles in gradient graph
+    
+    # Final memory cleanup
+    gc.collect()
+    torch.cuda.empty_cache() if torch.cuda.is_available() else None
+    
     return jvp_matrix, vjp_matrix
 
 
@@ -2665,6 +2739,7 @@ def randomized_svd_jacobian_per_token(func, inputs, num_singular_vectors=5, num_
         V_per_token: Right singular vectors for each token [seq_len, emb_dim, k]
     """
     # Use disable_flash_attention context manager for JVP/VJP compatibility
+    import gc
     with disable_flash_attention():
         assert isinstance(inputs, torch.Tensor) and len(inputs.shape) == 3, \
             "Per-token analysis requires inputs of shape [batch, seq_len, emb_dim]"
@@ -2740,9 +2815,9 @@ def randomized_svd_jacobian_per_token(func, inputs, num_singular_vectors=5, num_
         # U_stacked = torch.stack(U_per_token, dim=0)  # [seq_len, output_dim, k]
         # S_stacked = torch.stack(S_per_token, dim=0)  # [seq_len, k]
         # V_stacked = torch.stack(V_per_token, dim=0)  # [seq_len, emb_dim, k]
-        U_stacked = np.stack(U_per_token, dim=0)  # [seq_len, output_dim, k]
-        S_stacked = np.stack(S_per_token, dim=0)  # [seq_len, k]
-        V_stacked = np.stack(V_per_token, dim=0)  # [seq_len, emb_dim, k]
+        U_stacked = np.stack(U_per_token)  # [seq_len, output_dim, k]
+        S_stacked = np.stack(S_per_token)  # [seq_len, k]
+        V_stacked = np.stack(V_per_token)  # [seq_len, emb_dim, k]
 
         if debug:
             print(f"Final shapes - U: {U_stacked.shape}, S: {S_stacked.shape}, V: {V_stacked.shape}")
