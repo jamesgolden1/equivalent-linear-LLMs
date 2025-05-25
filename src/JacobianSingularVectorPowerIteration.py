@@ -647,7 +647,7 @@ def get_gpu_memory_info():
 def jacobian_svd(func, inputs, num_singular_vectors=5, create_graph=False, strict=False,
                  vectorize=False, strategy='auto', disable_flash_attn=True, debug=False,
                  max_memory_gb=8, gpu_memory_fraction=0.8, per_token=False,
-                 return_numpy=False, **svd_kwargs):
+                 return_numpy=True, **svd_kwargs):
     """
     Compute top singular vectors and values of the Jacobian matrix without materializing the full Jacobian.
 
@@ -801,9 +801,12 @@ def jacobian_svd(func, inputs, num_singular_vectors=5, create_graph=False, stric
             gc.collect()
 
             # Convert back to tensors in original dtype to minimize memory
-            U_stacked = torch.from_numpy(U_numpy_stacked).to(device=device, dtype=original_dtype)
-            S_stacked = torch.from_numpy(S_numpy_stacked).to(device=device, dtype=original_dtype)
-            V_stacked = torch.from_numpy(V_numpy_stacked).to(device=device, dtype=original_dtype)
+            # U_stacked = torch.from_numpy(U_numpy_stacked).to(device=device, dtype=original_dtype)
+            # S_stacked = torch.from_numpy(S_numpy_stacked).to(device=device, dtype=original_dtype)
+            # V_stacked = torch.from_numpy(V_numpy_stacked).to(device=device, dtype=original_dtype)
+            U_stacked = torch.from_numpy(U_numpy_stacked).to(ddtype=original_dtype)
+            S_stacked = torch.from_numpy(S_numpy_stacked).to(dtype=original_dtype)
+            V_stacked = torch.from_numpy(V_numpy_stacked).to(dtype=original_dtype)
 
             # Clean up numpy arrays
             del U_numpy_stacked, S_numpy_stacked, V_numpy_stacked
@@ -1455,9 +1458,9 @@ def randomized_svd_jacobian_per_token(func, inputs, num_singular_vectors=5, num_
             S_stacked = torch.stack(S_per_token, dim=0)
             V_stacked = torch.stack(V_per_token, dim=0)
             # Then move back to GPU if needed
-            U_stacked = U_stacked.to(device)
-            S_stacked = S_stacked.to(device)
-            V_stacked = V_stacked.to(device)
+            # U_stacked = U_stacked.to(device)
+            # S_stacked = S_stacked.to(device)
+            # V_stacked = V_stacked.to(device)
         else:
             U_stacked = torch.stack(U_per_token, dim=0)  # [seq_len, output_dim, k]
             S_stacked = torch.stack(S_per_token, dim=0)  # [seq_len, k]

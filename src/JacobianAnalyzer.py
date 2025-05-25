@@ -498,7 +498,7 @@ class JacobianAnalyzer:
 
         return jacobian_layer_i_to_end
 
-    def compute_jacobian_svd_fast_layer_i(self, i=None, key='layer', transform_to_output=False):
+    def compute_jacobian_svd_fast_layer_i(self, i=None, key='layer', transform_to_output=False, num_singular_vectors=3):
         """
         Compute Jacobian for a specific layer.
 
@@ -521,11 +521,11 @@ class JacobianAnalyzer:
         jacobian_svd_layer_i = JacobianSingularVectorPowerIteration.jacobian_svd_vectorized(
             model_forward_lsplit,
             self.embeds,
-            num_singular_vectors=4,
+            num_singular_vectors=num_singular_vectors,
             strategy='randomized',
             per_token=True,
             num_iter=6,         # Fewer power iterations for speed (default is 4)
-            oversampling=40,     # Less oversampling for speed (default is 10)
+            oversampling=10,     # Less oversampling for speed (default is 10)
             disable_flash_attn=True,
             debug=True
         )
@@ -562,7 +562,7 @@ class JacobianAnalyzer:
             strategy='randomized',
             per_token=True,
             num_iter=6,         # Fewer power iterations for speed (default is 4)
-            oversampling=40,     # Less oversampling for speed (default is 10)
+            oversampling=10,#40,     # Less oversampling for speed (default is 10)
             disable_flash_attn=True,
             debug=True
         )
@@ -718,10 +718,10 @@ class JacobianAnalyzer:
             elif token_list is not None:
                 tklist = token_list
             else:
-                # tkend = 1
-                # tklist = [0]
-                tkend = jacobian_np.shape[1]
-                tklist = list(range(tkend))
+                tkend = 1
+                tklist = [0]
+                # tkend = jacobian_np.shape[1]
+                # tklist = list(range(tkend))
 
             # Compute SVD for each token position
             for tkind in tklist:
@@ -740,6 +740,7 @@ class JacobianAnalyzer:
                             jacobian_to_end_np = np.expand_dims(jacobian_to_end_np,axis=1)
                         U = jacobian_to_end_np[:, tkind, :].squeeze()@U
                 else:
+                    print(jacobian_np.shape)
                     U, Sigma, VT = randomized_svd(
                         jacobian_np[:, :],
                         n_components=n_components,
@@ -752,6 +753,10 @@ class JacobianAnalyzer:
                 varr.append(VT)
 
         else: # fast_approx, svd already computed
+            
+            tkend = self.embeds.shape[1]
+            tklist = list(range(tkend))
+            
             if layerwise:
                 sarr = self.sarr_layers_layerwise[key][-1]
                 uarr = self.uarr_layers_layerwise[key][-1]
@@ -990,32 +995,48 @@ class JacobianAnalyzer:
         if token_list is None:
             token_list = [0]
 
-       if fast_approx: # use power iteration for fast approximation of top singular vectors
+        if fast_approx: # use power iteration for fast approximation of top singular vectors
 
             for layeri in layerlist:
                 if layer_mode == 'cumulative':
                     print(key, "layer", layeri)
                     jacobian_layer_i_svd = self.compute_jacobian_svd_fast_layer_i(i=layeri, key=key, transform_to_output=transform_to_output)
+                    # print(jacobian_layer_i_svd.shape)
+                    print(jacobian_layer_i_svd[0].shape)
 
-                    self.uarr_layers[key].append(jacobian_layer_i_svd[0].detach().cpu().float().numpy())
-                    self.sarr_layers[key].append(jacobian_layer_i_svd[1].detach().cpu().float().numpy())
-                    self.varr_layers[key].append(jacobian_layer_i_svd[2].detach().cpu().float().numpy())
+                    self.uarr_layers[key].append(jacobian_layer_i_svd[0])#.detach().cpu().float().numpy())
+                    self.sarr_layers[key].append(jacobian_layer_i_svd[1])#.detach().cpu().float().numpy())
+                    self.varr_layers[key].append(jacobian_layer_i_svd[2])#.detach().cpu().float().numpy())
 
                     # if transform_to_output:
                     #     print("to output...")
                     #     self.jacobian_layers_to_end[key].append(self.compute_jacobian_svd_fast_layer_i_to_end(i=layeri+1, key=key, transform_to_last_layer=transform_to_last_layer))
-                    
+                    # del jacobian_layer_i_svd
+                    # gc.collect()
+                    # if torch.cuda.is_available():
+                    #     torch.cuda.empty_cache()
+                    #     torch.cuda.synchronize()  # Ensure all operations complete
+
                     self.compute_jacobian_svd(layers=True, n_components=n_components, svs=svs,
                                             tokens_combined=tokens_combined, token_list=token_list,
                                             li=layeri, key=key, transform_to_output=transform_to_output, fast_approx=fast_approx)   
         
                 else:
                     print(key, "layer", layeri, "layerwise, fast")
-                    self.jacobian_layers_layerwise[key].append(self.compute_jacobian_svd_fast_layerwise_i(i=layeri, key=key, transform_to_output=transform_to_output))
 
-                    self.uarr_layers_layerwise[key].append(jacobian_layer_i_svd[0].detach().cpu().float().numpy())
-                    self.sarr_layers_layerwise[key].append(jacobian_layer_i_svd[1].detach().cpu().float().numpy())
-                    self.varr_layers_layerwise[key].append(jacobian_layer_i_svd[2].detach().cpu().float().numpy())
+                    jacobian_layerwise_i_svd = self.compute_jacobian_svd_fast_layerwise_i(i=layeri, key=key, transform_to_output=transform_to_output)
+
+                    print(jacobian_layerwise_i_svd[0].shape)
+
+                    self.uarr_layers_layerwise[key].append(jacobian_layerwise_i_svd[0])#.detach().cpu().float().numpy())
+                    self.sarr_layers_layerwise[key].append(jacobian_layerwise_i_svd[1])#.detach().cpu().float().numpy())
+                    self.varr_layers_layerwise[key].append(jacobian_layerwise_i_svd[2])#.detach().cpu().float().numpy())
+                    
+                    # del jacobian_layerwise_i_svd
+                    # gc.collect()
+                    # if torch.cuda.is_available():
+                    #     torch.cuda.empty_cache()
+                    #     torch.cuda.synchronize()  # Ensure all operations complete
 
                     # if transform_to_output:
                     #     self.jacobian_layers_to_end[key].append(self.compute_jacobian_layer_i_to_end(i=layeri+1, key=key, transform_to_last_layer=transform_to_last_layer))
