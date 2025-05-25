@@ -1337,15 +1337,19 @@ def randomized_svd_jacobian_vectorized(func, inputs, num_singular_vectors=5, num
 
         # Free V_norms and mask
         del V_norms, mask
+
+        U_clean, S_clean, V_clean = U.clone().detach(), S.clone().detach(), V.clone().detach()
+        del U, S, V
+
         gc.collect()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
 
         if debug:
-            print(f"Final shapes - U: {U.shape}, S: {S.shape}, V: {V.shape}")
-            print(f"Singular values: {S}")
+            print(f"Final shapes - U: {U_clean.shape}, S: {S_clean.shape}, V: {V_clean.shape}")
+            print(f"Singular values: {S_clean}")
 
-        return U, S, V
+        return U_clean, S_clean, V_clean
 
 
 def randomized_svd_jacobian_per_token(func, inputs, num_singular_vectors=5, num_iter=4,
@@ -2199,7 +2203,7 @@ def randomized_svd_jacobian_vectorized(func, inputs, num_singular_vectors=5, num
         S: Singular values
         V: Right singular vectors (input space)
     """
-
+    import gc
     # Use disable_flash_attention context manager for JVP/VJP compatibility
     with disable_flash_attention():
         # Setup and dimension calculation
@@ -2231,6 +2235,7 @@ def randomized_svd_jacobian_vectorized(func, inputs, num_singular_vectors=5, num
         Omega = torch.randn(input_dim, l, device=device, dtype=dtype)
         if stabilize:
             Omega, _ = _safe_qr_decomposition(Omega, debug)
+        del _
 
         # Step 2: Form Y = A * Omega using vectorized JVP
         # Instead of a loop, we apply jvp to all columns of Omega at once
@@ -2241,6 +2246,7 @@ def randomized_svd_jacobian_vectorized(func, inputs, num_singular_vectors=5, num
             # Orthogonalize Y
             if stabilize:
                 Y, _ = _safe_qr_decomposition(Y, debug)
+            del _
 
             # Z = A^T * Y using vectorized VJP
             Z = vjp_vmap(Y)  # Shape: [input_dim, l]
@@ -2248,12 +2254,18 @@ def randomized_svd_jacobian_vectorized(func, inputs, num_singular_vectors=5, num
             # Orthogonalize Z
             if stabilize:
                 Z, _ = _safe_qr_decomposition(Z, debug)
+                del _
 
             # Y = A * Z using vectorized JVP
             Y = jvp_vmap(Z)  # Shape: [output_dim, l]
+        
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
 
         # Step 4: QR decomposition of Y
         Q, R = _safe_qr_decomposition(Y, debug)
+        del R
         Q = Q[:, :k]  # Keep only first k columns
 
         # Step 5: Form the small matrix B = Q^T * A * Omega_k
@@ -2262,6 +2274,7 @@ def randomized_svd_jacobian_vectorized(func, inputs, num_singular_vectors=5, num
             # Use the first k columns of the original Omega, but ensure they're orthogonal
             Omega_k = Omega[:, :k]
             Omega_k, _ = torch.linalg.qr(Omega_k)
+            del _
         else:
             Omega_k = Omega
 
@@ -2270,26 +2283,39 @@ def randomized_svd_jacobian_vectorized(func, inputs, num_singular_vectors=5, num
 
         # Project onto the subspace spanned by Q
         B = Q.T @ Y_omega  # Shape: [k, k]
+        del Y_omega
 
         # Step 6: SVD of the small matrix B
         U_tilde, S, Vt_tilde = _safe_svd(B, debug)
+        del B
 
         # Step 7: Recover the singular vectors
         U = Q @ U_tilde  # Left singular vectors
+        del Q, U_tilde
 
         # Right singular vectors: V = Omega_k * V_tilde^T
         V = Omega_k @ Vt_tilde.T
+        del Omega_k, Vt_tilde
 
         # Normalize right singular vectors
         V_norms = torch.norm(V, dim=0, keepdim=True)
         mask = V_norms > 1e-10
         V[:, mask.squeeze()] = V[:, mask.squeeze()] / V_norms[:, mask.squeeze()]
+        del V_norms
+
+        
+        U_clean, S_clean, V_clean = U.clone().detach(), S.clone().detach(), V.clone().detach()
+        del U, S, V
+
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
 
         if debug:
-            print(f"Final shapes - U: {U.shape}, S: {S.shape}, V: {V.shape}")
-            print(f"Singular values: {S}")
+            print(f"Final shapes - U: {U_clean.shape}, S: {S_clean.shape}, V: {V_clean.shape}")
+            print(f"Singular values: {S_clean}")
 
-        return U, S, V
+        return U_clean, S_clean, V_clean
 
 
 def _setup_dimensions(inputs, func, debug=False):
@@ -2501,6 +2527,8 @@ def _safe_qr_decomposition(matrix, debug=False):
             print(f"Converting to float32 for QR decomposition (original: {original_dtype})")
         matrix_float = matrix.float()
         Q, R = torch.linalg.qr(matrix_float)
+        if torch.cuda.is_available():
+            torch.cuda.synchronize()
         # Convert back to original dtype if needed (though we usually want float32 for subsequent ops)
         return Q, R
     else:
@@ -2790,6 +2818,13 @@ def randomized_svd_jacobian_per_token(func, inputs, num_singular_vectors=5, num_
             # Extract the token embedding
             token_emb = inputs[0, token_idx, :].clone().requires_grad_(True)
 
+            # Optional: print memory usage for debugging
+            if debug and torch.cuda.is_available():
+                print(f"GPU memory before token {token_idx}: "
+                      f"{torch.cuda.memory_allocated() / 1024**2:.2f} MB allocated, "
+                      f"{torch.cuda.memory_reserved() / 1024**2:.2f} MB reserved")
+
+                # Clear garbage 
             # Compute SVD for this token
             U, S, V = randomized_svd_jacobian_vectorized(
                 token_specific_func, token_emb,
@@ -2803,12 +2838,18 @@ def randomized_svd_jacobian_per_token(func, inputs, num_singular_vectors=5, num_
             U_per_token.append(U.detach().cpu().numpy())
             S_per_token.append(S.detach().cpu().numpy())
             V_per_token.append(V.detach().cpu().numpy())
-            
+            del token_emb, token_specific_func
             del U, S, V
             gc.collect()
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
                 torch.cuda.synchronize()  # Ensure all operations complete
+
+            # Optional: print memory usage for debugging
+            if debug and torch.cuda.is_available():
+                print(f"GPU memory after token {token_idx}: "
+                      f"{torch.cuda.memory_allocated() / 1024**2:.2f} MB allocated, "
+                      f"{torch.cuda.memory_reserved() / 1024**2:.2f} MB reserved")
 
 
         # Stack results
@@ -2822,6 +2863,49 @@ def randomized_svd_jacobian_per_token(func, inputs, num_singular_vectors=5, num_
         if debug:
             print(f"Final shapes - U: {U_stacked.shape}, S: {S_stacked.shape}, V: {V_stacked.shape}")
 
+            # Optional: print memory usage for debugging
+            if debug and torch.cuda.is_available():
+                print(f"GPU memory after token {token_idx}: "
+                      f"{torch.cuda.memory_allocated() / 1024**2:.2f} MB allocated, "
+                      f"{torch.cuda.memory_reserved() / 1024**2:.2f} MB reserved")
+
+                # Clear garbage collector to ensure we see all tensors
+                gc.collect()
+                min_mb=400
+                print(f"\n===== CUDA TENSORS LARGER THAN {min_mb} MB =====")
+                
+                # Find all tensors
+                total_count = 0
+                large_tensors = []
+                
+                for obj in gc.get_objects():
+                    try:
+                        if torch.is_tensor(obj) and obj.is_cuda:
+                            # Calculate size in MB
+                            size_mb = obj.element_size() * obj.nelement() / (1024 * 1024)
+                            total_count += 1
+                            
+                            if size_mb >= min_mb:
+                                large_tensors.append((size_mb, tuple(obj.shape), obj.dtype))
+                    except:
+                        # Skip objects that can't be processed
+                        pass
+                
+                # Sort by size (largest first)
+                large_tensors.sort(reverse=True)
+                
+                if large_tensors:
+                    print(f"{'SIZE (MB)':<15} {'SHAPE':<30} {'DTYPE':<10}")
+                    print("-" * 55)
+                    
+                    for size_mb, shape, dtype in large_tensors:
+                        print(f"{size_mb:<15.2f} {str(shape):<30} {str(dtype):<10}")
+                else:
+                    print(f"No tensors larger than {min_mb} MB found")
+                    
+                # Print summary
+                print("-" * 55)
+                print(f"Total CUDA tensors: {total_count}")
         return U_stacked, S_stacked, V_stacked
 
 
