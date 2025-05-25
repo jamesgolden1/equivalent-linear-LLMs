@@ -777,7 +777,7 @@ def jacobian_svd(func, inputs, num_singular_vectors=5, create_graph=False, stric
                 V_list.append(V_numpy)
 
                 # Aggressive cleanup after each token
-                del token_result, U_numpy, S_numpy, V_numpy
+                del token_result, U_numpy, S_numpy, V_nummy
                 gc.collect()
                 if torch.cuda.is_available():
                     torch.cuda.empty_cache()
@@ -2725,14 +2725,24 @@ def randomized_svd_jacobian_per_token(func, inputs, num_singular_vectors=5, num_
                 stabilize=True
             )
 
-            U_per_token.append(U)
-            S_per_token.append(S)
-            V_per_token.append(V)
+            U_per_token.append(U.detach().cpu().numpy())
+            S_per_token.append(S.detach().cpu().numpy())
+            V_per_token.append(V.detach().cpu().numpy())
+            
+            del U, S, V
+            gc.collect()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+                torch.cuda.synchronize()  # Ensure all operations complete
+
 
         # Stack results
-        U_stacked = torch.stack(U_per_token, dim=0)  # [seq_len, output_dim, k]
-        S_stacked = torch.stack(S_per_token, dim=0)  # [seq_len, k]
-        V_stacked = torch.stack(V_per_token, dim=0)  # [seq_len, emb_dim, k]
+        # U_stacked = torch.stack(U_per_token, dim=0)  # [seq_len, output_dim, k]
+        # S_stacked = torch.stack(S_per_token, dim=0)  # [seq_len, k]
+        # V_stacked = torch.stack(V_per_token, dim=0)  # [seq_len, emb_dim, k]
+        U_stacked = np.stack(U_per_token, dim=0)  # [seq_len, output_dim, k]
+        S_stacked = np.stack(S_per_token, dim=0)  # [seq_len, k]
+        V_stacked = np.stack(V_per_token, dim=0)  # [seq_len, emb_dim, k]
 
         if debug:
             print(f"Final shapes - U: {U_stacked.shape}, S: {S_stacked.shape}, V: {V_stacked.shape}")
