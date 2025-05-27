@@ -313,6 +313,12 @@ class JacobianAnalyzer:
             # Add residual connection
             hidden_states = residual + attn_output
 
+            # Save attention output if requested
+            if key == 'attn':
+                if li == lsplit - 1:
+                    attn_output = self.model.model.norm(hidden_states)
+                outdict['attn_plus_residual'] = attn_output
+
             # Store residual for MLP block
             residual = hidden_states
 
@@ -973,7 +979,7 @@ class JacobianAnalyzer:
 
     def compute_jacobian_layers_svd(self, layerlist, tokens_combined=True, token_list=None,
                                    n_components=8, svs=1, key='layer', input_key='layer_input',
-                                   layer_mode='cumulative', transform_to_output=False, transform_to_last_layer=None, fast_approx=True):
+                                   layer_mode='cumulative', transform_to_output=False, transform_to_last_layer=None, fast_approx=False):
         """
         Compute SVD analysis across multiple layers.
 

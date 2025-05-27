@@ -3019,529 +3019,639 @@ def run_comprehensive_tests():
         return output.reshape(batch, -1)  # Flatten sequence dimension for simplicity
 
 import torch
-from contextlib import contextmanager
+import torch.nn.functional as F
 from torch.func import jvp, vjp, vmap
+import numpy as np
+import math
+from contextlib import contextmanager, nullcontext
+import time
 import gc
+from collections import namedtuple
 
+# Assume disable_flash_attention, _setup_dimensions, _safe_qr_decomposition, _safe_svd,
+# compute_ground_truth_svd, get_gpu_memory_info, randomized_svd_jacobian_improved (placeholder)
+# and _print_cuda_tensors_info are defined as in your previous working code.
+# I will only include the modified functions here.
+
+# --- Helper functions (kept as is, no changes here) ---
 @contextmanager
-def isolated_autograd_context():
-    """
-    Context manager that creates an isolated autograd context.
-    This prevents gradient accumulation across multiple operations.
-    """
-    # Store the current grad state
-    grad_enabled = torch.is_grad_enabled()
-    
+def disable_flash_attention():
+    original_flash = torch.backends.cuda.flash_sdp_enabled()
+    original_mem_efficient = torch.backends.cuda.mem_efficient_sdp_enabled()
+    original_math = torch.backends.cuda.math_sdp_enabled()
     try:
-        # Disable gradients temporarily
-        torch.set_grad_enabled(False)
-        
-        # Clear any existing autograd threads
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-            
-        # Re-enable gradients in a fresh context
-        torch.set_grad_enabled(True)
+        torch.backends.cuda.enable_flash_sdp(False)
+        torch.backends.cuda.enable_mem_efficient_sdp(False)
+        torch.backends.cuda.enable_math_sdp(True)
         yield
-        
     finally:
-        # Clean up and restore original state
-        torch.set_grad_enabled(False)
-        gc.collect()
+        torch.backends.cuda.enable_flash_sdp(original_flash)
+        torch.backends.cuda.enable_mem_efficient_sdp(original_mem_efficient)
+        torch.backends.cuda.enable_math_sdp(original_math)
+
+def _setup_dimensions(inputs, func, debug=False):
+    if isinstance(inputs, torch.Tensor):
+        inputs_is_tensor = True
+        input_shape_tuple = inputs.shape
+        input_dim = inputs.numel()
+        device = inputs.device
+        dtype = inputs.dtype
+    else: # Assuming inputs is a tuple of Tensors
+        inputs_is_tensor = False
+        input_shape_tuple = tuple(x.shape for x in inputs)
+        input_dim = sum(x.numel() for x in inputs)
+        device = inputs[0].device
+        dtype = inputs[0].dtype
+
+    if debug:
+        print(f"Starting _setup_dimensions with input type: {'Tensor' if inputs_is_tensor else 'Tuple'}")
         if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-        torch.set_grad_enabled(grad_enabled)
+            print(f"Memory before _setup_dimensions initial func call: {torch.cuda.memory_allocated() / 1024**2:.2f} MB allocated")
+
+    if inputs_is_tensor:
+        input_clone = inputs.clone().detach() # Detach here
+    else:
+        input_clone = [x.clone().detach() for x in inputs] # Detach here
+
+    try:
+        outputs = func(input_clone)
+        if isinstance(outputs, torch.Tensor):
+            output_shape = outputs.shape
+            output_dim = outputs.numel()
+        else:
+            output_shape = tuple(out.shape for out in outputs)
+            output_dim = sum(out.numel() for out in outputs)
+    except RuntimeError as e:
+        if "Expected tensor for argument #1 'indices' to have" in str(e):
+            if debug:
+                print("Detected potential embedding function issue with BFloat16 inputs. Converting to float32 for function evaluation only.")
+            if inputs_is_tensor:
+                input_clone = inputs.float()
+            else:
+                input_clone = [x.float() for x in inputs]
+            outputs = func(input_clone)
+            if isinstance(outputs, torch.Tensor):
+                output_shape = outputs.shape
+                output_dim = outputs.numel()
+            else:
+                output_shape = tuple(out.shape for out in outputs)
+                output_dim = sum(out.numel() for out in outputs)
+        else:
+            raise
+
+    del inputs, outputs, input_clone # Explicitly delete for aggressive cleanup
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+        torch.cuda.synchronize()
+        if debug:
+            print(f"Memory after _setup_dimensions cleanup: {torch.cuda.memory_allocated() / 1024**2:.2f} MB allocated")
+
+    return device, dtype, input_dim, output_dim, input_shape_tuple, output_shape
 
 
-def _create_fast_memory_safe_functions(func, inputs, input_shape, output_shape,
-                                     input_dim, output_dim, debug=False):
+def _safe_qr_decomposition(matrix, debug=False):
+    original_dtype = matrix.dtype
+    needs_conversion = original_dtype in [torch.bfloat16, torch.float16]
+    if needs_conversion:
+        matrix_float = matrix.float()
+        Q, R = torch.linalg.qr(matrix_float)
+        if torch.cuda.is_available(): torch.cuda.synchronize()
+        return Q, R
+    else: return torch.linalg.qr(matrix)
+
+def _safe_svd(matrix, debug=False):
+    original_dtype = matrix.dtype
+    needs_conversion = original_dtype in [torch.bfloat16, torch.float16]
+    if needs_conversion:
+        matrix_double = matrix.double()
+        return torch.linalg.svd(matrix_double, full_matrices=False)
+    else: return torch.linalg.svd(matrix, full_matrices=False)
+
+def get_gpu_memory_info():
+    if torch.cuda.is_available():
+        total_memory = torch.cuda.get_device_properties(0).total_memory / (1024**3)
+        allocated_memory = torch.cuda.memory_allocated(0) / (1024**3)
+        reserved_memory = torch.cuda.memory_reserved(0) / (1024**3)
+        free_memory = total_memory - allocated_memory
+        return {'total_gb': total_memory, 'allocated_gb': allocated_memory, 'reserved_gb': reserved_memory, 'free_gb': free_memory}
+    return {'total_gb': 0, 'allocated_gb': 0, 'reserved_gb': 0, 'free_gb': 0}
+
+def _print_cuda_tensors_info(min_mb=100):
+    print(f"\n===== CUDA TENSORS LARGER THAN {min_mb} MB =====")
+    total_count = 0
+    large_tensors = []
+    for obj in gc.get_objects():
+        try:
+            if torch.is_tensor(obj) and obj.is_cuda:
+                size_mb = obj.element_size() * obj.nelement() / (1024 * 1024)
+                total_count += 1
+                if size_mb >= min_mb:
+                    large_tensors.append((size_mb, tuple(obj.shape), obj.dtype))
+        except: pass
+    large_tensors.sort(reverse=True)
+    if large_tensors:
+        print(f"{'SIZE (MB)':<15} {'SHAPE':<30} {'DTYPE':<10}")
+        print("-" * 55)
+        for size_mb, shape, dtype in large_tensors: print(f"{size_mb:<15.2f} {str(shape):<30} {str(dtype):<10}")
+    else: print(f"No tensors larger than {min_mb} MB found")
+    print("-" * 55)
+    print(f"Total CUDA tensors: {total_count}")
+
+def randomized_svd_jacobian_improved(*args, **kwargs):
+    raise NotImplementedError("randomized_svd_jacobian_improved is not defined. Please ensure it's present for validation.")
+
+
+# --- MODIFIED FUNCTIONS (Focus on _create_vectorized_matrix_vector_functions) ---
+
+def _create_vectorized_matrix_vector_functions(func, inputs, input_shape, output_shape,
+                                               input_dim, output_dim, debug=False):
     """
-    FAST VERSION: Use context managers and tensor lifecycle management 
-    to prevent memory leaks while keeping everything on GPU.
+    Create vectorized JVP and VJP functions using vmap.
+    It takes `inputs` directly, ensuring `flat_inputs` is created fresh and only requires_grad=True once.
     """
-    
-    # Keep original dtype for model compatibility
+    # inputs here is the single `token_emb_for_svd` (or original full inputs for non-per_token case)
+    # It is already requires_grad=True from the caller.
     original_dtype = inputs.dtype if isinstance(inputs, torch.Tensor) else inputs[0].dtype
     needs_conversion = original_dtype in [torch.bfloat16, torch.float16]
 
-    if needs_conversion and debug:
-        print(f"Will convert to float32 only for linear algebra operations (model uses: {original_dtype})")
+    if debug:
+        print(f"Inside _create_vectorized_matrix_vector_functions. Input dtype: {original_dtype}")
+        if needs_conversion:
+            print(f"Will convert to float32 for linear algebra operations (model uses: {original_dtype})")
 
-    # Pre-create the flattened inputs ONCE
-    if isinstance(inputs, torch.Tensor):
-        base_flat_inputs = inputs.flatten().detach()
+    # Create flattened function that matches jacobian() exactly
+    # `input_shape` here will be the shape of `token_emb_for_svd` (e.g., torch.Size([3072]))
+    # `outputs_shape` will be the shape of the flattened output of `token_specific_func` (e.g., torch.Size([3072]))
+    def flattened_func(flat_inputs_arg): # `flat_inputs_arg` is the input to `jvp` itself
+        # Convert to original_dtype for the model execution if needed
+        model_input = flat_inputs_arg.to(original_dtype) if needs_conversion else flat_inputs_arg
+
+        if isinstance(inputs, torch.Tensor): # This checks if the original input to randomized_svd_jacobian_vectorized was a single tensor
+            shaped_inputs = model_input.reshape(input_shape) # Reshape to the actual input shape for func
+        else: # Case for tuple of inputs (not typical for per-token single embedding)
+            shaped_inputs = []
+            offset = 0
+            for i, shape in enumerate(input_shape):
+                size = torch.prod(torch.tensor(shape)).item()
+                shaped_inputs.append(model_input[offset:offset+size].reshape(shape))
+                offset += size
+            shaped_inputs = tuple(shaped_inputs)
+
+        outputs = func(shaped_inputs) # Call the user's function
+
+        if isinstance(outputs, torch.Tensor):
+            result = outputs.flatten()
+        else:
+            result = torch.cat([out.flatten() for out in outputs])
+
+        # Convert back to float32 for linear algebra if needed (this part is handled by jvp/vjp)
+        # We don't need to explicitly convert result here; jvp/vjp handle return dtypes.
+        return result
+
+    # `flat_inputs` is the tensor that `jvp` and `vjp` will differentiate with respect to.
+    # It must already have `requires_grad=True`.
+    # It comes from the `inputs` argument to this function, which is `token_emb_for_svd`
+    # in the per-token case, and it's already `.requires_grad_(True)`.
+    flat_inputs_for_jvp_vjp = inputs.flatten() # It's already flattened for token_emb
+
+    # Define a function that computes JVP for a single vector
+    def jvp_single(v):
+        # Pass the pre-existing `flat_inputs_for_jvp_vjp` to jvp.
+        # DO NOT call .detach().requires_grad_(True) here.
+        # `v` should be in the correct dtype (float32 if needs_conversion is true)
+        # because `vmap` will ensure its inputs are correctly broadcasted/typed.
+        _, result = jvp(flattened_func, (flat_inputs_for_jvp_vjp,), (v,))
+        return result.float() if needs_conversion else result # Ensure consistent return dtype
+
+    # Define a function that computes VJP for a single vector
+    def vjp_single(u):
+        # Pass the pre-existing `flat_inputs_for_jvp_vjp` to vjp.
+        # DO NOT call .detach().requires_grad_(True) here.
+        _, vjp_fn = vjp(flattened_func, flat_inputs_for_jvp_vjp)
+        result = vjp_fn(u)
+
+        if isinstance(result, tuple):
+            result = result[0]
+        return result.float() if needs_conversion else result # Ensure consistent return dtype
+
+    # Vectorized versions that operate on matrices (each column is a vector)
+    def jvp_matrix(matrix):
+        matrix_t = matrix.T
+        results_t = vmap(jvp_single)(matrix_t)
+        return results_t.T
+
+    def vjp_matrix(matrix):
+        matrix_t = matrix.T
+        results_t = vmap(vjp_single)(matrix_t)
+        return results_t.T
+
+    if debug:
+        print("Created vectorized matrix-vector product functions with vmap")
+
+    return jvp_matrix, vjp_matrix
+
+
+def randomized_svd_jacobian_vectorized(func, inputs, num_singular_vectors=5, num_iter=4,
+                                       oversampling=10, debug=False, stabilize=True):
+    """
+    Vectorized randomized SVD for Jacobian matrices using vmap for JVP/VJP operations.
+    This version creates `jvp_vmap` and `vjp_vmap` within its scope, allowing for better cleanup.
+    `inputs` here is the `token_emb_for_svd` in the per-token case.
+    """
+    if debug:
+        print(f"Starting randomized_svd_jacobian_vectorized (for single token/non-per_token).")
+        if torch.cuda.is_available():
+            print(f"Memory on entry to randomized_svd_jacobian_vectorized: {torch.cuda.memory_allocated() / 1024**2:.2f} MB allocated")
+
+    with disable_flash_attention():
+        # _setup_dimensions will now get dimensions for the *single token* func and input
+        device, dtype, input_dim, output_dim, input_shape, output_shape = _setup_dimensions(inputs, func, debug)
+
+        k = num_singular_vectors
+        if min(input_dim, output_dim) < 20:
+            oversampling = max(oversampling, min(input_dim, output_dim) - k)
+            num_iter = max(num_iter, 6)
+            if debug:
+                print(f"Small problem detected: using oversampling={oversampling}, num_iter={num_iter}")
+
+        l = min(k + oversampling, min(input_dim, output_dim))
+
+        if debug:
+            print(f"Input dim: {input_dim}, Output dim: {output_dim}, k={k}, l={l}")
+
+        # IMPORTANT: _create_vectorized_matrix_vector_functions is called here
+        # for *this specific token's func and input*.
+        jvp_vmap, vjp_vmap = _create_vectorized_matrix_vector_functions(
+            func, inputs, input_shape, output_shape, input_dim, output_dim, debug
+        )
+
+        Omega = torch.randn(input_dim, l, device=device, dtype=dtype)
+        if stabilize:
+            Omega, _ = _safe_qr_decomposition(Omega, debug)
+
+        if debug:
+            if torch.cuda.is_available():
+                print(f"Memory before JVP_vmap(Omega): {torch.cuda.memory_allocated() / 1024**2:.2f} MB allocated")
+        Y = jvp_vmap(Omega)
+        if debug:
+            if torch.cuda.is_available():
+                print(f"Memory after JVP_vmap(Omega): {torch.cuda.memory_allocated() / 1024**2:.2f} MB allocated")
+
+
+        for iteration in range(num_iter):
+            if stabilize:
+                Y, _ = _safe_qr_decomposition(Y, debug)
+
+            if debug and iteration == 0: # Only print for first iteration to avoid spam
+                if torch.cuda.is_available():
+                    print(f"Memory before VJP_vmap(Y) (iter {iteration}): {torch.cuda.memory_allocated() / 1024**2:.2f} MB allocated")
+            Z = vjp_vmap(Y)
+            if debug and iteration == 0:
+                if torch.cuda.is_available():
+                    print(f"Memory after VJP_vmap(Y) (iter {iteration}): {torch.cuda.memory_allocated() / 1024**2:.2f} MB allocated")
+
+
+            if stabilize:
+                Z, _ = _safe_qr_decomposition(Z, debug)
+
+            if debug and iteration == 0:
+                if torch.cuda.is_available():
+                    print(f"Memory before JVP_vmap(Z) (iter {iteration}): {torch.cuda.memory_allocated() / 1024**2:.2f} MB allocated")
+            Y = jvp_vmap(Z)
+            if debug and iteration == 0:
+                if torch.cuda.is_available():
+                    print(f"Memory after JVP_vmap(Z) (iter {iteration}): {torch.cuda.memory_allocated() / 1024**2:.2f} MB allocated")
+
+        # Explicitly delete vjp_vmap and related tensors as they are no longer needed
+        del vjp_vmap # This is crucial as it holds references to traced graph
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            torch.cuda.synchronize()
+            if debug:
+                print(f"Memory after power iterations cleanup: {torch.cuda.memory_allocated() / 1024**2:.2f} MB allocated")
+
+        Q, R = _safe_qr_decomposition(Y, debug)
+        del R
+        Q = Q[:, :k]
+
+        if l > k:
+            Omega_k = Omega[:, :k]
+            Omega_k, _ = torch.linalg.qr(Omega_k)
+        else:
+            Omega_k = Omega
+
+        if debug:
+            if torch.cuda.is_available():
+                print(f"Memory before final JVP_vmap(Omega_k): {torch.cuda.memory_allocated() / 1024**2:.2f} MB allocated")
+        Y_omega = jvp_vmap(Omega_k)
+        if debug:
+            if torch.cuda.is_available():
+                print(f"Memory after final JVP_vmap(Omega_k): {torch.cuda.memory_allocated() / 1024**2:.2f} MB allocated")
+
+        B = Q.T @ Y_omega
+        # Explicitly delete these intermediates
+        del Y_omega, jvp_vmap, Omega, Y, Z # Delete jvp_vmap here too!
+        gc.collect() # Aggressive cleanup
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            torch.cuda.synchronize()
+            if debug:
+                print(f"Memory after B computation and cleanup: {torch.cuda.memory_allocated() / 1024**2:.2f} MB allocated")
+
+        U_tilde, S, Vt_tilde = _safe_svd(B, debug)
+        del B
+
+        U = Q @ U_tilde
+        del Q, U_tilde
+
+        V = Omega_k @ Vt_tilde.T
+        del Omega_k, Vt_tilde
+
+        V_norms = torch.norm(V, dim=0, keepdim=True)
+        mask = V_norms > 1e-10
+        V[:, mask.squeeze()] = V[:, mask.squeeze()] / V_norms[:, mask.squeeze()]
+        del V_norms
+
+        # Detach and move to CPU, then delete original tensors
+        U_clean, S_clean, V_clean = U.detach().cpu(), S.detach().cpu(), V.detach().cpu()
+        del U, S, V
+
+        # Aggressive final cleanup within this function call
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            torch.cuda.synchronize()
+            if debug:
+                print(f"Memory after final SVD and cleanup: {torch.cuda.memory_allocated() / 1024**2:.2f} MB allocated")
+
+
+        if debug:
+            print(f"Final shapes - U: {U_clean.shape}, S: {S_clean.shape}, V: {V_clean.shape}")
+            print(f"Singular values: {S_clean}")
+
+        return U_clean, S_clean, V_clean
+
+
+def _run_per_token_svd(func, inputs, num_singular_vectors, num_iter, oversampling, debug):
+    """
+    A wrapper function to compute SVD for each token, ensuring all intermediate
+    tensors and vmap-related graphs are released after each token's computation.
+    """
+    batch_size, seq_len, emb_dim = inputs.shape
+    device = inputs.device
+    dtype = inputs.dtype
+
+    if debug:
+        print(f"Starting _run_per_token_svd (loop over tokens).")
+        if torch.cuda.is_available():
+            print(f"Memory on entry to _run_per_token_svd: {torch.cuda.memory_allocated() / 1024**2:.2f} MB allocated")
+
+    # First, get output dimensions by running the function once
+    outputs = func(inputs)
+    if isinstance(outputs, torch.Tensor):
+        output_dim = outputs.numel()
     else:
-        base_flat_inputs = torch.cat([inp.flatten() for inp in inputs]).detach()
+        raise ValueError("Per-token analysis expects tensor output from func")
 
-    def create_model_func():
-        """Create a fresh model function for each batch of operations."""
-        def model_func(flat_inputs):
-            if isinstance(inputs, torch.Tensor):
-                shaped = flat_inputs.reshape(input_shape)
+    U_per_token = []
+    S_per_token = []
+    V_per_token = []
+
+    # Define a factory function that will create the `token_specific_func` for each iteration.
+    def token_specific_func_factory(idx, original_full_inputs, user_func):
+        def inner_token_func(token_embedding_slice):
+            # Create a *fresh* copy of the full inputs tensor for this specific token's pass.
+            current_inputs_for_func = original_full_inputs.clone().detach()
+            # Ensure the token embedding is correctly placed. It's already required_grad=False here.
+            current_inputs_for_func[0, idx, :] = token_embedding_slice # token_embedding_slice is the requires_grad=True input
+            return user_func(current_inputs_for_func)
+        return inner_token_func
+
+    for token_idx in range(seq_len):
+        if debug:
+            print(f"Processing token {token_idx+1}/{seq_len}...")
+            if torch.cuda.is_available():
+                print(f"GPU memory before token {token_idx+1} in _run_per_token_svd loop: "
+                      f"{torch.cuda.memory_allocated() / 1024**2:.2f} MB allocated, "
+                      f"{torch.cuda.memory_reserved() / 1024**2:.2f} MB reserved")
+
+        # Get the specific token's embedding for this iteration.
+        # This is the TENSOR WE WILL DIFFERENTIATE W.R.T. for THIS TOKEN.
+        # It must be cloned, detached, and requires_grad=True.
+        token_emb_for_svd = inputs[0, token_idx, :].clone().detach().requires_grad_(True).to(device)
+
+        # Create a fresh `token_specific_func` for the current token.
+        # This function encapsulates the `func` call with the modified inputs.
+        current_token_func = token_specific_func_factory(token_idx, inputs, func)
+
+        # Call the `randomized_svd_jacobian_vectorized` function.
+        # It will receive `current_token_func` and `token_emb_for_svd`,
+        # and its internal `_create_vectorized_matrix_vector_functions` will use
+        # `token_emb_for_svd` as the `inputs` for jvp/vjp, which is already requires_grad=True.
+        U, S, V = randomized_svd_jacobian_vectorized(
+            current_token_func, token_emb_for_svd,
+            num_singular_vectors=num_singular_vectors,
+            num_iter=num_iter,
+            oversampling=oversampling,
+            debug=debug if token_idx == 0 else False, # Only debug first token's internal SVD
+            stabilize=True
+        )
+
+        # Store the results (already on CPU from randomized_svd_jacobian_vectorized)
+        U_per_token.append(U)
+        S_per_token.append(S)
+        V_per_token.append(V)
+
+        # Explicitly delete objects related to the current token's computation
+        del token_emb_for_svd, current_token_func, U, S, V
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            torch.cuda.synchronize()
+            if debug:
+                print(f"GPU memory after token {token_idx+1} cleanup in _run_per_token_svd loop: "
+                      f"{torch.cuda.memory_allocated() / 1024**2:.2f} MB allocated, "
+                      f"{torch.cuda.memory_reserved() / 1024**2:.2f} MB reserved")
+
+
+    # Stack results after the loop is complete
+    U_stacked = torch.stack(U_per_token, dim=0) # [seq_len, output_dim, k]
+    S_stacked = torch.stack(S_per_token, dim=0) # [seq_len, k]
+    V_stacked = torch.stack(V_per_token, dim=0) # [seq_len, emb_dim, k]
+
+    if debug:
+        print(f"Final shapes (stacked) - U: {U_stacked.shape}, S: {S_stacked.shape}, V: {V_stacked.shape}")
+        if torch.cuda.is_available():
+            print(f"GPU memory after all tokens processed (stacked): "
+                  f"{torch.cuda.memory_allocated() / 1024**2:.2f} MB allocated, "
+                  f"{torch.cuda.memory_reserved() / 1024**2:.2f} MB reserved")
+            _print_cuda_tensors_info(min_mb=100) # Check for remaining large tensors
+
+    return U_stacked, S_stacked, V_stacked
+
+
+def jacobian_svd_vectorized(func, inputs, num_singular_vectors=5, create_graph=False, strict=False,
+                            vectorize=False, strategy='auto', disable_flash_attn=True, debug=False,
+                            max_memory_gb=8, gpu_memory_fraction=0.8, per_token=False,
+                            return_numpy=False, **svd_kwargs):
+    """
+    Optimized version of jacobian_svd using vectorized operations with vmap.
+    """
+    if debug:
+        print("Starting jacobian_svd_vectorized...")
+        if torch.cuda.is_available():
+            print(f"Initial GPU memory on entry: {torch.cuda.memory_allocated() / 1024**2:.2f} MB allocated, "
+                  f"{torch.cuda.memory_reserved() / 1024**2:.2f} MB reserved")
+
+    if per_token:
+        JacobianSVD = namedtuple('JacobianSVD', ['U', 'S', 'V', 'input_dim', 'output_dim', 'num_tokens'])
+    else:
+        JacobianSVD = namedtuple('JacobianSVD', ['U', 'S', 'V', 'input_dim', 'output_dim'])
+
+    if create_graph:
+        print("Warning: create_graph=True is not yet implemented for jacobian_svd_vectorized")
+    if strict:
+        print("Warning: strict=True is not yet implemented for jacobian_svd_vectorized")
+
+    # Initial setup for the *overall* problem dimensions (not per-token yet)
+    initial_device, initial_dtype, initial_input_dim, initial_output_dim, initial_input_shape, initial_output_shape = \
+        _setup_dimensions(inputs, func, debug=debug)
+
+    if debug:
+        print(f"Problem dimensions: {initial_output_dim} × {initial_input_dim}")
+        print(f"Input shape: {initial_input_shape}")
+        print(f"Output shape: {initial_output_shape}")
+        print(f"Input dtype: {initial_dtype}")
+
+    context_manager = disable_flash_attention() if disable_flash_attn else nullcontext()
+
+    results_U, results_S, results_V = None, None, None
+    num_tokens = None
+
+    with context_manager:
+        if per_token:
+            if debug:
+                print("Performing per-token Jacobian analysis with vectorization...")
+
+            if isinstance(inputs, torch.Tensor) and len(initial_input_shape) == 3:
+                batch_size, num_tokens, token_dim = initial_input_shape
+                if batch_size != 1:
+                    raise ValueError(f"Per-token analysis requires batch_size=1, got {batch_size}")
+
+                if debug:
+                    print(f"Detected {num_tokens} tokens, each with {token_dim} dimensions")
+
+                results_U, results_S, results_V = _run_per_token_svd(
+                    func, inputs,
+                    num_singular_vectors=num_singular_vectors,
+                    num_iter=svd_kwargs.get('num_iter', 4),
+                    oversampling=svd_kwargs.get('oversampling', 10),
+                    debug=debug
+                )
             else:
-                shaped_list = []
-                offset = 0
-                for i, shape in enumerate(input_shape):
-                    size = torch.prod(torch.tensor(shape)).item()
-                    shaped_list.append(flat_inputs[offset:offset+size].reshape(shape))
-                    offset += size
-                shaped = tuple(shaped_list)
+                raise ValueError(f"Per-token analysis requires 3D input tensor [batch, tokens, dim], got shape {initial_input_shape}")
+
+        else: # Standard (non-per-token) SVD calculation
+            jacobian_memory_gb = (initial_input_dim * initial_output_dim * 4) / (1024**3)
+
+            if torch.cuda.is_available() and initial_device.type == 'cuda':
+                gpu_info = get_gpu_memory_info()
+                if debug:
+                    print(f"GPU Memory - Total: {gpu_info['total_gb']:.1f}GB, "
+                          f"Free: {gpu_info['free_gb']:.1f}GB")
+                    print(f"Full Jacobian would require ~{jacobian_memory_gb:.2f}GB")
+                gpu_available = gpu_info['free_gb'] * gpu_memory_fraction
+                effective_memory_limit = min(max_memory_gb, gpu_available)
+            else:
+                effective_memory_limit = max_memory_gb
+
+            if strategy == 'auto':
+                if jacobian_memory_gb > effective_memory_limit:
+                    strategy_chosen = 'randomized'
+                    if debug:
+                        print(f"Auto-choosing randomized (memory: {jacobian_memory_gb:.2f}GB > {effective_memory_limit:.1f}GB)")
+                else:
+                    strategy_chosen = 'full'
+                    if debug:
+                        print(f"Auto-choosing full SVD (memory: {jacobian_memory_gb:.2f}GB <= {effective_memory_limit:.1f}GB)")
+            else:
+                strategy_chosen = strategy
+
+            if strategy_chosen == 'randomized' and num_singular_vectors >= min(initial_input_dim, initial_output_dim):
+                print(f"Warning: num_singular_vectors ({num_singular_vectors}) >= min(input_dim, output_dim) ({min(initial_input_dim, initial_output_dim)})")
+                num_singular_vectors_safe = min(num_singular_vectors, min(initial_input_dim, initial_output_dim) - 1)
+                print(f"Reducing to {num_singular_vectors_safe}")
+            else:
+                num_singular_vectors_safe = num_singular_vectors
 
             try:
-                output = func(shaped)
-                if isinstance(output, torch.Tensor):
-                    return output.flatten()
+                if strategy_chosen == 'full':
+                    if debug:
+                        print("Computing full SVD...")
+                    results_U, results_S, results_V = compute_ground_truth_svd(func, inputs, num_singular_vectors_safe)
+                elif strategy_chosen == 'randomized':
+                    if debug:
+                        print("Computing randomized SVD with vectorization...")
+                    default_svd_params = {
+                        'num_iter': 4,
+                        'oversampling': min(10, min(initial_input_dim, initial_output_dim) // 2),
+                        'debug': debug,
+                        'stabilize': True
+                    }
+                    default_svd_params.update(svd_kwargs)
+                    results_U, results_S, results_V = randomized_svd_jacobian_vectorized(
+                        func, inputs,
+                        num_singular_vectors=num_singular_vectors_safe,
+                        **default_svd_params
+                    )
                 else:
-                    return torch.cat([out.flatten() for out in output])
-            except RuntimeError as e:
-                if "Expected tensor for argument #1 'indices' to have" in str(e):
-                    if isinstance(shaped, torch.Tensor):
-                        shaped = shaped.float()
-                    else:
-                        shaped = tuple(x.float() for x in shaped)
-                    
-                    output = func(shaped)
-                    if isinstance(output, torch.Tensor):
-                        return output.flatten()
-                    else:
-                        return torch.cat([out.flatten() for out in output])
+                    raise ValueError(f"Unknown strategy: {strategy_chosen}. Must be 'auto', 'full', or 'randomized'")
+            except Exception as e:
+                if debug:
+                    print(f"Error during SVD computation: {e}")
+                if strategy_chosen == 'full':
+                    print(f"Full SVD failed ({e}), falling back to randomized method")
+                    try:
+                        default_svd_params = {
+                            'num_iter': 4,
+                            'oversampling': min(10, min(initial_input_dim, initial_output_dim) // 2),
+                            'debug': debug,
+                            'stabilize': True
+                        }
+                        default_svd_params.update(svd_kwargs)
+                        results_U, results_S, results_V = randomized_svd_jacobian_vectorized(
+                            func, inputs,
+                            num_singular_vectors=num_singular_vectors_safe,
+                            **default_svd_params
+                        )
+                    except Exception as e2:
+                        print(f"Randomized SVD also failed: {e2}")
+                        raise
                 else:
                     raise
-        return model_func
 
-    def jvp_single_fast(v):
-        """Fast JVP for a single vector using isolated context."""
-        with isolated_autograd_context():
-            # Create fresh inputs for this operation
-            fresh_inputs = base_flat_inputs.clone().requires_grad_(True)
-            model_func = create_model_func()
-            
-            if needs_conversion:
-                v_model = v.to(original_dtype)
-            else:
-                v_model = v
-                
-            # Perform JVP
-            _, result = jvp(model_func, (fresh_inputs,), (v_model,))
-            
-            if needs_conversion:
-                result = result.float()
-                
-            # Detach immediately
-            return result.detach()
+    if return_numpy:
+        results_U = results_U.numpy()
+        results_S = results_S.numpy()
+        results_V = results_V.numpy()
 
-    def vjp_single_fast(u):
-        """Fast VJP for a single vector using isolated context."""
-        with isolated_autograd_context():
-            # Create fresh inputs for this operation
-            fresh_inputs = base_flat_inputs.clone().requires_grad_(True)
-            model_func = create_model_func()
-            
-            if needs_conversion:
-                u_model = u.to(original_dtype)
-            else:
-                u_model = u
-                
-            # Perform VJP
-            _, vjp_fn = vjp(model_func, fresh_inputs)
-            result = vjp_fn(u_model)
-            
-            if isinstance(result, tuple):
-                result = result[0]
-                
-            if needs_conversion:
-                result = result.float()
-                
-            # Detach immediately
-            return result.detach()
-
-    def jvp_matrix_fast(matrix):
-        """Fast JVP using vmap with periodic cleanup."""
-        matrix_t = matrix.T.detach()
-        
-        # Use vmap but with the isolated context
-        with isolated_autograd_context():
-            # Apply vmap to get all results at once
-            results_t = vmap(jvp_single_fast)(matrix_t)
-            result = results_t.T.detach()
-            
-        # Cleanup intermediate tensors
-        del matrix_t, results_t
-        
-        return result
-
-    def vjp_matrix_fast(matrix):
-        """Fast VJP using vmap with periodic cleanup."""
-        matrix_t = matrix.T.detach()
-        
-        # Use vmap but with the isolated context
-        with isolated_autograd_context():
-            # Apply vmap to get all results at once
-            results_t = vmap(vjp_single_fast)(matrix_t)
-            result = results_t.T.detach()
-            
-        # Cleanup intermediate tensors
-        del matrix_t, results_t
-        
-        return result
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+        torch.cuda.synchronize()
 
     if debug:
-        print("Created fast memory-safe matrix-vector product functions")
-
-    return jvp_matrix_fast, vjp_matrix_fast
-
-
-def randomized_svd_jacobian_fast(func, inputs, num_singular_vectors=5, num_iter=4,
-                               oversampling=10, debug=False, stabilize=True):
-    """
-    FAST VERSION: Uses context managers to prevent memory leaks while maintaining speed.
-    """
-    import gc
-    
-    with disable_flash_attention():
-        device, dtype, input_dim, output_dim, input_shape, output_shape = _setup_dimensions(inputs, func, debug)
-
-        k = num_singular_vectors
-        if min(input_dim, output_dim) < 20:
-            oversampling = max(oversampling, min(input_dim, output_dim) - k)
-            num_iter = max(num_iter, 6)
-
-        l = min(k + oversampling, min(input_dim, output_dim))
-
-        if debug:
-            print(f"Using fast memory-safe management")
-            print(f"Input dim: {input_dim}, Output dim: {output_dim}, k={k}, l={l}")
-
-        # Use fast memory-safe matrix-vector functions
-        jvp_vmap, vjp_vmap = _create_fast_memory_safe_functions(
-            func, inputs, input_shape, output_shape, input_dim, output_dim, debug
-        )
-
-        # Generate random matrix (force float32)
-        Omega = torch.randn(input_dim, l, device=device, dtype=torch.float32)
-        if stabilize:
-            Omega, _ = _safe_qr_decomposition(Omega, debug)
-            del _
-
-        if debug:
-            print("Starting initial JVP computation...")
-            start_time = time.time()
-            
-        # Initial Y computation
-        Y = jvp_vmap(Omega)
-        Y = Y.detach()
-        
-        if debug:
-            print(f"Initial JVP took {time.time() - start_time:.2f}s")
-        
-        # Force cleanup
-        del Omega
-        gc.collect()
+        print("Completed jacobian_svd_vectorized.")
         if torch.cuda.is_available():
-            torch.cuda.empty_cache()
+            print(f"Final GPU memory on exit: {torch.cuda.memory_allocated() / 1024**2:.2f} MB allocated, "
+                  f"{torch.cuda.memory_reserved() / 1024**2:.2f} MB reserved")
+            _print_cuda_tensors_info(min_mb=100)
 
-        # Power iterations
-        for iteration in range(num_iter):
-            if debug:
-                iter_start = time.time()
-                print(f"Power iteration {iteration}/{num_iter}")
-                if torch.cuda.is_available():
-                    print(f"GPU memory: {torch.cuda.memory_allocated() / 1024**2:.2f} MB")
-            
-            # Orthogonalize Y
-            if stabilize:
-                Y, _ = _safe_qr_decomposition(Y, debug)
-                Y = Y.detach()
-                del _
-
-            # VJP step
-            vjp_start = time.time()
-            Z = vjp_vmap(Y)
-            Z = Z.detach()
-            if debug:
-                print(f"  VJP took {time.time() - vjp_start:.2f}s")
-            
-            # Orthogonalize Z
-            if stabilize:
-                Z, _ = _safe_qr_decomposition(Z, debug)
-                Z = Z.detach()
-                del _
-
-            # JVP step
-            jvp_start = time.time()
-            Y_new = jvp_vmap(Z)
-            Y = Y_new.detach()
-            if debug:
-                print(f"  JVP took {time.time() - jvp_start:.2f}s")
-                print(f"  Iteration {iteration} total: {time.time() - iter_start:.2f}s")
-            
-            # Cleanup
-            del Z, Y_new
-            
-            # Periodic memory cleanup (every 2 iterations)
-            if iteration % 2 == 0:
-                gc.collect()
-                if torch.cuda.is_available():
-                    torch.cuda.empty_cache()
-
-        # Delete JVP/VJP functions early
-        del vjp_vmap, jvp_vmap
-        gc.collect()
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-
-        # Complete the algorithm properly
-        Q, R = _safe_qr_decomposition(Y, debug)
-        del R, Y
-        Q = Q[:, :k]
-
-        # For this fast version, return simplified results
-        # In practice, you'd complete the full algorithm
-        U = Q
-        S = torch.ones(k, device=device, dtype=torch.float32)
-        V = torch.eye(input_dim, k, device=device, dtype=torch.float32)
-
-        gc.collect()
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-
-        return U, S, V
-
-
-# ALTERNATIVE: Even faster approach using custom vmap implementation
-def _create_ultra_fast_functions(func, inputs, input_shape, output_shape,
-                                input_dim, output_dim, debug=False):
-    """
-    ULTRA FAST: Custom implementation that minimizes autograd overhead.
-    """
-    
-    original_dtype = inputs.dtype if isinstance(inputs, torch.Tensor) else inputs[0].dtype
-    needs_conversion = original_dtype in [torch.bfloat16, torch.float16]
-
-    # Pre-flatten inputs
-    if isinstance(inputs, torch.Tensor):
-        base_flat_inputs = inputs.flatten().detach()
+    if per_token:
+        return JacobianSVD(U=results_U, S=results_S, V=results_V,
+                           input_dim=initial_input_dim, output_dim=initial_output_dim, num_tokens=num_tokens)
     else:
-        base_flat_inputs = torch.cat([inp.flatten() for inp in inputs]).detach()
-
-    def ultra_fast_jvp_matrix(matrix):
-        """Ultra-fast JVP using chunked processing."""
-        chunk_size = min(10, matrix.shape[1])  # Process 10 vectors at a time
-        device = matrix.device
-        results = []
-        
-        for i in range(0, matrix.shape[1], chunk_size):
-            end_idx = min(i + chunk_size, matrix.shape[1])
-            chunk = matrix[:, i:end_idx]
-            
-            # Process chunk with minimal overhead
-            with torch.enable_grad():
-                fresh_inputs = base_flat_inputs.clone().requires_grad_(True)
-                
-                def model_func(flat_inputs):
-                    if isinstance(inputs, torch.Tensor):
-                        shaped = flat_inputs.reshape(input_shape)
-                    else:
-                        shaped_list = []
-                        offset = 0
-                        for j, shape in enumerate(input_shape):
-                            size = torch.prod(torch.tensor(shape)).item()
-                            shaped_list.append(flat_inputs[offset:offset+size].reshape(shape))
-                            offset += size
-                        shaped = tuple(shaped_list)
-
-                    try:
-                        output = func(shaped)
-                        if isinstance(output, torch.Tensor):
-                            return output.flatten()
-                        else:
-                            return torch.cat([out.flatten() for out in output])
-                    except RuntimeError as e:
-                        if "Expected tensor for argument #1 'indices' to have" in str(e):
-                            if isinstance(shaped, torch.Tensor):
-                                shaped = shaped.float()
-                            else:
-                                shaped = tuple(x.float() for x in shaped)
-                            
-                            output = func(shaped)
-                            if isinstance(output, torch.Tensor):
-                                return output.flatten()
-                            else:
-                                return torch.cat([out.flatten() for out in output])
-                        else:
-                            raise
-                
-                # Process all vectors in chunk
-                chunk_results = []
-                for j in range(chunk.shape[1]):
-                    vec = chunk[:, j]
-                    if needs_conversion:
-                        vec = vec.to(original_dtype)
-                    
-                    _, result = jvp(model_func, (fresh_inputs,), (vec,))
-                    if needs_conversion:
-                        result = result.float()
-                    
-                    chunk_results.append(result.detach())
-                
-                results.extend(chunk_results)
-                del fresh_inputs, chunk_results
-            
-            # Cleanup every chunk
-            torch.cuda.empty_cache() if torch.cuda.is_available() else None
-        
-        return torch.stack(results, dim=1)
-
-    def ultra_fast_vjp_matrix(matrix):
-        """Ultra-fast VJP using chunked processing."""
-        chunk_size = min(10, matrix.shape[1])
-        device = matrix.device
-        results = []
-        
-        for i in range(0, matrix.shape[1], chunk_size):
-            end_idx = min(i + chunk_size, matrix.shape[1])
-            chunk = matrix[:, i:end_idx]
-            
-            # Process chunk with minimal overhead
-            with torch.enable_grad():
-                fresh_inputs = base_flat_inputs.clone().requires_grad_(True)
-                
-                def model_func(flat_inputs):
-                    if isinstance(inputs, torch.Tensor):
-                        shaped = flat_inputs.reshape(input_shape)
-                    else:
-                        shaped_list = []
-                        offset = 0
-                        for j, shape in enumerate(input_shape):
-                            size = torch.prod(torch.tensor(shape)).item()
-                            shaped_list.append(flat_inputs[offset:offset+size].reshape(shape))
-                            offset += size
-                        shaped = tuple(shaped_list)
-
-                    try:
-                        output = func(shaped)
-                        if isinstance(output, torch.Tensor):
-                            return output.flatten()
-                        else:
-                            return torch.cat([out.flatten() for out in output])
-                    except RuntimeError as e:
-                        if "Expected tensor for argument #1 'indices' to have" in str(e):
-                            if isinstance(shaped, torch.Tensor):
-                                shaped = shaped.float()
-                            else:
-                                shaped = tuple(x.float() for x in shaped)
-                            
-                            output = func(shaped)
-                            if isinstance(output, torch.Tensor):
-                                return output.flatten()
-                            else:
-                                return torch.cat([out.flatten() for out in output])
-                        else:
-                            raise
-                
-                # Process all vectors in chunk
-                chunk_results = []
-                for j in range(chunk.shape[1]):
-                    vec = chunk[:, j]
-                    if needs_conversion:
-                        vec = vec.to(original_dtype)
-                    
-                    _, vjp_fn = vjp(model_func, fresh_inputs)
-                    result = vjp_fn(vec)
-                    if isinstance(result, tuple):
-                        result = result[0]
-                    if needs_conversion:
-                        result = result.float()
-                    
-                    chunk_results.append(result.detach())
-                
-                results.extend(chunk_results)
-                del fresh_inputs, chunk_results
-            
-            # Cleanup every chunk
-            torch.cuda.empty_cache() if torch.cuda.is_available() else None
-        
-        return torch.stack(results, dim=1)
-
-    if debug:
-        print("Created ultra-fast chunked matrix-vector product functions")
-
-    return ultra_fast_jvp_matrix, ultra_fast_vjp_matrix
-
-
-def randomized_svd_jacobian_ultra_fast(func, inputs, num_singular_vectors=5, num_iter=4,
-                                     oversampling=10, debug=False, stabilize=True):
-    """
-    ULTRA FAST VERSION: Maximum speed with chunked processing.
-    """
-    import time
-    
-    total_start = time.time()
-    
-    with disable_flash_attention():
-        device, dtype, input_dim, output_dim, input_shape, output_shape = _setup_dimensions(inputs, func, debug)
-
-        k = num_singular_vectors
-        if min(input_dim, output_dim) < 20:
-            oversampling = max(oversampling, min(input_dim, output_dim) - k)
-            num_iter = max(num_iter, 6)
-
-        l = min(k + oversampling, min(input_dim, output_dim))
-
-        if debug:
-            print(f"Using ultra-fast chunked processing")
-            print(f"Input dim: {input_dim}, Output dim: {output_dim}, k={k}, l={l}")
-
-        # Use ultra-fast matrix-vector functions
-        jvp_vmap, vjp_vmap = _create_ultra_fast_functions(
-            func, inputs, input_shape, output_shape, input_dim, output_dim, debug
-        )
-
-        # Rest of algorithm with timing
-        Omega = torch.randn(input_dim, l, device=device, dtype=torch.float32)
-        if stabilize:
-            Omega, _ = _safe_qr_decomposition(Omega, debug)
-            del _
-
-        if debug:
-            print("Starting computation...")
-            
-        Y = jvp_vmap(Omega)
-        del Omega
-
-        # Power iterations
-        for iteration in range(num_iter):
-            if debug:
-                iter_start = time.time()
-            
-            if stabilize:
-                Y, _ = _safe_qr_decomposition(Y, debug)
-                del _
-            
-            Z = vjp_vmap(Y)
-            
-            if stabilize:
-                Z, _ = _safe_qr_decomposition(Z, debug)
-                del _
-            
-            Y = jvp_vmap(Z)
-            del Z
-            
-            if debug:
-                print(f"Iteration {iteration}: {time.time() - iter_start:.2f}s")
-
-        del vjp_vmap, jvp_vmap
-
-        # Final steps
-        Q, R = _safe_qr_decomposition(Y, debug)
-        del R, Y
-        Q = Q[:, :k]
-
-        U = Q
-        S = torch.ones(k, device=device, dtype=torch.float32)
-        V = torch.eye(input_dim, k, device=device, dtype=torch.float32)
-
-        if debug:
-            print(f"Total time: {time.time() - total_start:.2f}s")
-
-        return U, S, V
+        return JacobianSVD(U=results_U, S=results_S, V=results_V,
+                           input_dim=initial_input_dim, output_dim=initial_output_dim)

@@ -1,5 +1,5 @@
 import torch
-def model_forward(self, embeds, lstart=0, lsplit=None, key='layer'):
+def model_forward(self, embeds, lstart=0, lsplit=None, key='layer', transform_to_output=False):
     """
     Forward pass through Gemma model layers
 
@@ -104,7 +104,7 @@ def model_forward(self, embeds, lstart=0, lsplit=None, key='layer'):
         hidden_states = residual + hidden_states
 
     # Apply final normalization if we processed all layers
-    if key != "layer_input" and li == lsplit - 1:
+    if key != "layer_input" and li == lsplit - 1 and not transform_to_output:
         hidden_states = self.model.model.norm(hidden_states)
     # # Apply final normalization
     # if li == len(self.model.model.layers) - 1:
