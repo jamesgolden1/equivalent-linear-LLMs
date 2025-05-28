@@ -314,7 +314,7 @@ class JacobianAnalyzer:
             hidden_states = residual + attn_output
 
             # Save attention output if requested
-            if key == 'attn':
+            if key == 'attn_plus_residual':
                 if li == lsplit - 1:
                     attn_output = self.model.model.norm(hidden_states)
                 outdict['attn_plus_residual'] = attn_output

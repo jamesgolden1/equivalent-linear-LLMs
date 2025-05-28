@@ -79,6 +79,12 @@ def model_forward(self, embeds, lstart=0, lsplit=None, key='layer', transform_to
         # Add residual connection
         hidden_states = residual + hidden_states
 
+        # Save attention output if requested
+        if key == 'attn_plus_residual':
+            if li == lsplit - 1:
+                attn_out = self.model.model.norm(hidden_states)
+                outdict['attn_plus_residual'] = attn_out
+
         # Store residual for MLP block
         residual = hidden_states
 
