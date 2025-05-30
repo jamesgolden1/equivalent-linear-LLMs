@@ -15,7 +15,7 @@ Despite their expressive power and global nonlinearity, modern LLMs can be inter
 Fig 1: The Llama 3 architecture with gradient detachments that produce local linearity. The network components that are detached from the computational graph at inference to enable local linearity with respect to the input embedding vectors are outlined in red. These include normalization layers, feed forward/multi-layer perceptron blocks and attention blocks. This approach only works for LLMs with gated linear activations (Swish/SiLU, SwiGLU, GeLU) and zero-bias linear layers (for both feedfoward/MLP and attention blocks).
 
 <p align="center">
-  <img src="https://github.com/jamesgolden1/llms-are-llms/blob/main/images/fig3-jacobian-reconstruction.png" width=100%"/>
+  <img src="https://github.com/jamesgolden1/llms-are-llms/blob/main/images/fig3-jacobian-reconstruction.png" width=50%"/>
 </p>
 
 Fig 2: The reconstruction error of the Jacobian of the original network compared to the reconstruction error of the detached Jacobian of the network with a modified gradient at inference (which produces the same outputs as the original network).
@@ -27,7 +27,7 @@ Fig 2: The reconstruction error of the Jacobian of the original network compared
 Fig 3: The right and left singular values of the Jacobian matrix corresponding to each input embedding vector can be decoded to tokens, demonstrating that the right singular vectors select for the input tokens (as expected), and the left singular vectors generate semantic concepts that appear in the decoded output.
 
 <p align="center">
-  <img src="https://github.com/jamesgolden1/llms-are-llms/blob/main/images/deepseek-R1-0528-qwen3-8b.png" width=45%/>
+  <img src="https://github.com/jamesgolden1/llms-are-llms/blob/main/images/deepseek-R1-0528-qwen3-8b.png" width=100%/>
 </p>
 
 Fig 4: Results for Deepseek R1 0528 Qwen 3 8B.
