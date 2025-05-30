@@ -723,6 +723,9 @@ class JacobianAnalyzer:
                 tklist = list(range(tkend))
             elif token_list is not None:
                 tklist = token_list
+            elif not layers:
+                tkend = jacobian_np.shape[1]
+                tklist = list(range(tkend))
             else:
                 tkend = 1
                 tklist = [0]
