@@ -27,6 +27,12 @@ Fig 2: The reconstruction error of the Jacobian of the original network compared
 Fig 3: The right and left singular values of the Jacobian matrix corresponding to each input embedding vector can be decoded to tokens, demonstrating that the right singular vectors select for the input tokens (as expected), and the left singular vectors generate semantic concepts that appear in the decoded output.
 
 <p align="center">
+  <img src="https://github.com/jamesgolden1/llms-are-llms/blob/main/images/deepseek-R1-0528-qwen3-8b.png" width=45%/>
+</p>
+
+Fig 4: Results for Deepseek R1 0528 Qwen 3 8B.
+
+<p align="center">
   <img src="https://github.com/jamesgolden1/llms-are-llms/blob/main/images/jacobian_detached.png" width=45%/>
 </p>
 
