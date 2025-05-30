@@ -3,12 +3,11 @@ James Golden
 
 # Abstract
 
-We demonstrate that the inference operation of several open-weight large language models (LLMs) can be mapped to an exactly equivalent linear system for any input sequence without modifying the model weights or altering output predictions. 
+We demonstrate that the inference operations of several open-weight large language models (LLMs) can be mapped to an exactly equivalent linear system for an input sequence without modifying the model weights or altering output predictions. Extending techniques from image diffusion models that exhibit local or piecewise linearity, we strategically alter the gradient computation with respect to a given input sequence for a next-token prediction such that the Jacobian of the model nearly exactly reproduces the forward prediction with a linear system. 
 
-Extending techniques from image diffusion models that exhibit local or piecewise linearity, we strategically alter the gradient computation with respect to a given input sequence such that the Jacobian of the LLM nearly exactly reproduces the forward prediction with an interpretable linear system. We demonstrate this approach across models (**Llama 3.3, Gemma 3, Qwen 3, Phi 4, Mistral Ministral and OLMo 2**) and show through the singular value decomposition of the Jacobian that these LLMs operate in extremely low-dimensional subspaces spanned by singular vectors that decode to interpretable semantic concepts. 
+We demonstrate this approach across models (Llama 3, Gemma 3, Qwen 3, Phi 4, Mistral Ministral and OLMo 2, up to Llama 3.3 70B Q4) and show through the singular value decomposition of the detached Jacobian that these LLMs operate in extremely low-dimensional subspaces where many of the largest singular vectors decode to concepts related to the most-likely output token. This approach also allows us to examine the operation of each successive layer (and its attention and MLP components) as nearly-exact linear systems and observe the emergence of semantic concepts. 
 
-This approach also allows us to examine the operation of each successive layer (and its components) as exact linear systems and to directly manipulate predictions. Despite their expressive power and global nonlinearity, modern LLMs can be interpreted through exact linear decompositions that reveal their internal representations and computational mechanisms.
-
+Despite their expressive power and global nonlinearity, modern LLMs can be interpreted through nearly-exact locally linear decompositions that provide insights into their internal representations and reveal interpretable semantic structures in the next-token prediction process.
 <p align="center">
   <img src="https://github.com/jamesgolden1/llms-are-llms/blob/main/images/fig1-llama-detached-swiglu.png" width=70%/>
 </p>
@@ -26,13 +25,6 @@ Fig 2: The reconstruction error of the Jacobian of the original network compared
 </p>
 
 Fig 3: The right and left singular values of the Jacobian matrix corresponding to each input embedding vector can be decoded to tokens, demonstrating that the right singular vectors select for the input tokens (as expected), and the left singular vectors generate semantic concepts that appear in the decoded output.
-
-The Taylor expansion of a nonlinear function like the transformer mapping of input embedding vectors **x** to a predicted output embedding vector **y** is:
-<p align="center">
-  <img src="https://github.com/jamesgolden1/llms-are-llms/blob/main/images/jacobian_taylor.png" width=45%/>
-</p>
-
-By detaching the gradients of particular terms at inference with respect to the input embedding vectors, a linear path for the input is preserved through the transformer function such that the predicted output embedding is unchanged but the high order terms of the Taylor expansion are all exactly zero. In other words, the network's inference is dependent only on the Jacobian matrices and therefore locally linear for a particular inference sequence. The output can be nearly exactly reproduced by mutliplying the matrices of the detached Jacobian with the input embedding vectors. (The function is globally nonlinear, and the detached Jacobian must be computed numerically for each input sequence).
 
 <p align="center">
   <img src="https://github.com/jamesgolden1/llms-are-llms/blob/main/images/jacobian_detached.png" width=45%/>
