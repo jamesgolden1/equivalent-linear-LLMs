@@ -1,5 +1,5 @@
 import torch
-def model_forward(self, embeds, lstart=0, lsplit=None, key='layer'):
+def model_forward(self, embeds, lstart=0, lsplit=None, key='layer', transform_to_output=False):
     """
     Forward pass through OLMo 2 model layers with linearization for Jacobian analysis
 
