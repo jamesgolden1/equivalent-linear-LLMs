@@ -1,5 +1,6 @@
 # Large Language Models are Locally Linear Mappings
 https://arxiv.org/abs/2505.24293
+
 James Golden
 
 # Abstract
