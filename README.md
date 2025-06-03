@@ -35,7 +35,7 @@ where **J**$^+$ is the "detached Jacobian" that captures the full nonlinear comp
 
 
 <p align="center">
-  <img src="https://github.com/jamesgolden1/llms-are-llms/blob/main/images/fig1-llama-detached-swiglu.png" width=45%/>
+  <img src="https://github.com/jamesgolden1/llms-are-llms/blob/main/images/fig1-llama-detached-swiglu.png" width=75%/>
 </p>
 
 Fig. 1: The locally linear path through the $SwiGLU$ layer.
