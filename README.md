@@ -33,6 +33,13 @@ where **J**$^+$ is the "detached Jacobian" that captures the full nonlinear comp
 - **Attention**: Detach softmax operation while preserving linear $V$ multiplication
 - **Analysis**: Apply SVD to understand learned representations and semantic emergence
 
+
+<p align="center">
+  <img src="https://github.com/jamesgolden1/llms-are-llms/blob/main/images/fig1-llama-detached-swiglu.png" width=45%/>
+</p>
+
+Fig. 1: The locally linear path through the $SwiGLU$ layer.
+
 ## Key Results
 ### Model Coverage
 
@@ -82,7 +89,7 @@ cd llms-are-llms
   <img src="https://github.com/jamesgolden1/llms-are-llms/blob/main/images/deepseek-R1-0528-qwen3-8b.png" width=100%/>
 </p>
 
-Fig 1: Results for Deepseek R1 0528 Qwen 3 8B.
+Fig 2: Results for Deepseek R1 0528 Qwen 3 8B.
 
 **Model Steering**
 
