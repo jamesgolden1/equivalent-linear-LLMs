@@ -104,7 +104,17 @@ def main():
     # Initialize the analyzer
     try:
         print("Loading", model_name)
-        analyzer = JacobianAnalyzer(model_name=model_name, dtype=dtype)
+
+        transformers_file = transformers.__file__.split('__')[0]
+        backup_file = transformers_file+"models/llama/modeling_llama_original.py"
+
+        # Check if the locally linear files have been run before
+        if os.path.isfile(backup_file):
+            analyzer = JacobianAnalyzer(model_name=model_name, dtype=dtype)
+        else:
+          analyzer = JacobianAnalyzer(model_name=model_name, dtype=dtype, load_model=False)
+          analyzer = JacobianAnalyzer(model_name=model_name, dtype=dtype, load_model=True)
+    
     except ValueError:
         raise ValueError("Invalid model name. Acceptable names include 'llama-3.2', 'llama-3.3', 'gemma-3-4b', 'qwen-3-8b', 'phi-4', 'mistral-ministral', etc.")
 

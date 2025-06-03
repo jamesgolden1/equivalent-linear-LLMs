@@ -28,7 +28,7 @@ class JacobianAnalyzer:
     visualization methods, and token interpretation features.
     """
 
-    def __init__(self, model_name="meta-llama/Llama-3.1-8B-Instruct", device="cuda", dtype=torch.bfloat16):
+    def __init__(self, model_name="meta-llama/Llama-3.1-8B-Instruct", device="cuda", dtype=torch.bfloat16, load_model=True):
         """
         Initialize the JacobianAnalyzer with a specified model.
 
@@ -46,7 +46,8 @@ class JacobianAnalyzer:
         self.copy_locally_linear_files()
 
         # Load and prepare model
-        self.load_model(dtype=dtype)
+        if load_model: 
+            self.load_model(dtype=dtype)
 
         # Initialize storage containers for analysis results
         self._init_storage()
@@ -67,8 +68,8 @@ class JacobianAnalyzer:
         shutil.copy(modeling_file, backup_file)
         shutil.copy(modeling_file_new, modeling_file) 
         clear_import_cache()
-        if 'transformers.models.llama.modeling_llama' in sys.modules:
-            importlib.reload(sys.modules['transformers.models.llama.modeling_llama'])
+        # if 'transformers.models.llama.modeling_llama' in sys.modules:
+        importlib.reload(sys.modules['transformers.models.llama.modeling_llama'])
 
         # Gemma 3
         modeling_file_new = "models/gemma_3/modeling_gemma_locally_linear.py"
