@@ -8,14 +8,14 @@ https://arxiv.org/abs/2505.24293
 
 ## Key findings
 
-We demonstrate that large language models can be mapped to exactly equivalent linear systems for any given input sequence, without modifying model weights or altering predictions. We achieve this through strategic gradient computation modifications that create "detached Jacobians" - linear representations that capture the complete forward computation.
+We demonstrate that large language models can be mapped to nearly-exact equivalent linear systems for any given input sequence, without modifying model weights or altering predictions. We achieve this through strategic gradient computation modifications that create "detached Jacobians" - linear representations that capture the complete forward computation.
 
 ### Why This Matters
 
-- **Near-Exact Reconstruction**: The detached Jacobian reconstructs outputs with ~10⁻⁶ relative error and $R^{2}$ > 0.99999
-- **Interpretability**: Reveals semantic concepts emerging in model layers through SVD analysis
-- **Efficiency**: Enables analysis of 70B+ parameter models without additional training
-- **Universality**: Works across model families (Llama, Gemma, Qwen, Phi, Mistral, OLMo)
+- **Near-Exact Reconstruction**: The detached Jacobian reconstructs with ~10⁻⁶ relative error and $R^{2}$ > 0.99999
+- **Interpretability**: Reveals semantic concepts emerging in model layers through the singular value decomposition
+- **Efficiency**: Enables analysis of up to 70B parameter models (Llama 3.3 Q4) without additional training
+- **Universality**: Works across model families (Qwen, Gemma, Llama, Phi, Mistral, OLMo)
 
 ## How It Works
 ### The Core Innovation
@@ -35,19 +35,19 @@ where J⁺ is the "detached Jacobian" that captures the full nonlinear computati
 ## Key Results
 ### Model Coverage
 
-✅ Llama 3 (3B - 70B parameters)
-
-✅ Gemma 3 (4B - 12B parameters)
-
-✅ Qwen 3 (8B parameters, including Deepseek R1)
+✅ Qwen 3 (8B - 32B parameters)
 
 ✅ Deepseek R1 0528 Qwen 3 (8B parameters)
 
-✅ Phi 4 (14B parameters)
+✅ Gemma 3 (4B - 12B - 27B parameters)
+
+✅ Llama 3 (3B - 8B - 70B parameters)
+
+✅ Phi 4 (3B - 14B parameters)
 
 ✅ Mistral Ministral (8B parameters)
 
-✅ OLMo 2 (8B)
+✅ OLMo 2 (8B parameters)
 
 ### Semantic Analysis
 
