@@ -1,9 +1,10 @@
 # Large Language Models are Locally Linear Mappings
+
 **A novel approach to interpreting transformer decoder models with nearly-exact locally linear decompositions.**
 
-James R. Golden
-
 https://arxiv.org/abs/2505.24293
+
+**James R. Golden**
 
 ## Key findings
 
@@ -11,7 +12,7 @@ We demonstrate that large language models can be mapped to exactly equivalent li
 
 ### Why This Matters
 
-- **Near-Exact Reconstruction**: The detached Jacobian reconstructs outputs with ~10⁻⁶ relative error and R^2 > 0.99999
+- **Near-Exact Reconstruction**: The detached Jacobian reconstructs outputs with ~10⁻⁶ relative error and $'R^2'$ > 0.99999
 - **Interpretability**: Reveals semantic concepts emerging in model layers through SVD analysis
 - **Efficiency**: Enables analysis of 70B+ parameter models without additional training
 - **Universality**: Works across model families (Llama, Gemma, Qwen, Phi, Mistral, OLMo)
