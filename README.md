@@ -18,8 +18,8 @@ We demonstrate that large language models can be mapped to nearly-exact equivale
 - **Universality**: Works across model families (Qwen, Gemma, Llama, Phi, Mistral, OLMo)
 
 ## How It Works
-### The Core Innovation
-We strategically detach gradients from nonlinear operations (activation functions, normalization, attention softmax) to create locally linear paths through the network. For example, SiLU(x) = x*sigmoid(x), but when the nonlinear sigmoid(x) term is "frozen" for a specific input x^\*, the Jacobian computed numerically by torch autograd is linear in x and exactly reconstructs SiLU(x^\*).
+### The Linear Path
+We strategically detach gradients from nonlinear operations (activation functions, normalization, attention softmax) to create locally linear paths (or paths that are at least homogeneous of order 1) through the network. For example, SiLU(x) = x*sigmoid(x), but when the nonlinear sigmoid(x) term is "frozen" for a specific input x^\*, the Jacobian computed numerically by torch autograd is linear in x and exactly reconstructs SiLU(x^\*).
 <p align="center">
   <img src="https://github.com/jamesgolden1/llms-are-llms/blob/main/images/jacobian_detached.png" width=45%/>
 </p>
