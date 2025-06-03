@@ -72,7 +72,7 @@ import os
 from google.colab import userdata
 os.environ["HF_HUB_ENABLE_HF_TRANSFER"]='1'
 os.environ["HF_TOKEN"] = userdata.get('HF_TOKEN')
-!git clone https://jamesgolden1:$GITHUB_TOKEN@github.com/jamesgolden1/llms-are-llms.git
+!git clone https://github.com/jamesgolden1/llms-are-llms.git
 cd llms-are-llms
 !pip install -r requirements.txt --no-deps
 !python run_detached_jacobian.py --hf_token $HF_TOKEN --model_name "llama-3.2-3b" --text "The Golden"
