@@ -77,6 +77,7 @@ cd llms-are-llms
 !pip install -r requirements.txt --no-deps
 !python run_detached_jacobian.py --hf_token $HF_TOKEN --model_name "llama-3.2-3b" --text "The Golden"
 ```
+**Note**: Occasionally the overwritten "modeling_*.py" files in transformers do not take effect immediately; if the output is not locally linear, restart and run again.
 
 ## Applications
 **Interpretability**
