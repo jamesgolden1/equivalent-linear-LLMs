@@ -67,9 +67,9 @@ class JacobianAnalyzer:
         backup_file = transformers_file+"models/llama/modeling_llama_original.py"
         shutil.copy(modeling_file, backup_file)
         shutil.copy(modeling_file_new, modeling_file) 
-        clear_import_cache()
+        # clear_import_cache()
         # if 'transformers.models.llama.modeling_llama' in sys.modules:
-        importlib.reload(sys.modules['transformers.models.llama.modeling_llama'])
+        # importlib.reload(sys.modules['transformers.models.llama.modeling_llama'])
 
         # Gemma 3
         modeling_file_new = "models/gemma_3/modeling_gemma_locally_linear.py"
