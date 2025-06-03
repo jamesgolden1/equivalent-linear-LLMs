@@ -2,6 +2,7 @@
 **A novel approach to interpreting transformer decoder models with nearly-exact locally linear decompositions.**
 
 James R. Golden
+
 https://arxiv.org/abs/2505.24293
 
 ## Key findings
@@ -10,7 +11,7 @@ We demonstrate that large language models can be mapped to exactly equivalent li
 
 ### Why This Matters
 
-- **Near-Exact Reconstruction**: Linear systems reproduce model outputs with ~10⁻⁶ relative error and R^2 > 0.99999
+- **Near-Exact Reconstruction**: The detached Jacobian reconstructs outputs with ~10⁻⁶ relative error and R^2 > 0.99999
 - **Interpretability**: Reveals semantic concepts emerging in model layers through SVD analysis
 - **Efficiency**: Enables analysis of 70B+ parameter models without additional training
 - **Universality**: Works across model families (Llama, Gemma, Qwen, Phi, Mistral, OLMo)
@@ -61,12 +62,6 @@ Our analysis reveals:
 - Layer-by-layer emergence of geographic and infrastructure concepts
 - Extremely sparse activation patterns with few dominant features
 
-<p align="center">
-  <img src="https://github.com/jamesgolden1/llms-are-llms/blob/main/images/deepseek-R1-0528-qwen3-8b.png" width=100%/>
-</p>
-
-Fig 1: Results for Deepseek R1 0528 Qwen 3 8B.
-
 ### Usage 
 Huggingface token with model access required
 ```
@@ -85,13 +80,25 @@ cd llms-are-llms
 
 Concept Analysis: Understand what drives model predictions
 Layer Dynamics: Track semantic emergence through transformer layers
-Feature Importance: Identify key input features for any prediction
+Feature Importance: Identify key input tokens and concepts for next-token prediction
+
+<p align="center">
+  <img src="https://github.com/jamesgolden1/llms-are-llms/blob/main/images/deepseek-R1-0528-qwen3-8b.png" width=100%/>
+</p>
+
+Fig 1: Results for Deepseek R1 0528 Qwen 3 8B.
 
 **Model Steering**
 
 Efficient Control: Steer model outputs using detached Jacobians
 Concept Injection: Inject specific concepts (e.g., "Golden Gate Bridge") into continuations
 Safety Applications: Detect and potentially mitigate bias or toxic content
+
+<p align="center">
+  <img src="https://github.com/jamesgolden1/llms-are-llms/blob/main/images/steering.png" width=100%/>
+</p>
+
+Table 1: Steering results across models.
 
 **Research Tools**
 
@@ -116,5 +123,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 This work builds on foundational research in:
 
 Transformer interpretability (Elhage et al., 2021)
+
 Locally linear neural networks (Mohan et al., 2019)
+
 Diffusion model linearity (Kadkhodaie et al., 2023)
