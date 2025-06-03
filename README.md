@@ -8,7 +8,7 @@ https://arxiv.org/abs/2505.24293
 
 ## Key findings
 
-We demonstrate that large language models can be mapped to nearly-exact equivalent linear systems for any given input sequence, without modifying model weights or altering predictions. We achieve this through strategic gradient computation modifications that create "detached Jacobians" - linear representations that capture the complete forward computation.
+We demonstrate that large language models can be mapped to nearly-exact equivalent linear systems for any given input sequence, without modifying model weights or altering predictions. We achieve this through strategic gradient computation modifications that create "detached Jacobians", which are linear representations that capture the complete forward computation.
 
 ### Why This Matters
 
@@ -19,18 +19,19 @@ We demonstrate that large language models can be mapped to nearly-exact equivale
 
 ## How It Works
 ### The Linear Path
-We strategically detach gradients from nonlinear operations (activation functions, normalization, attention softmax) to create locally linear paths (or paths that are at least homogeneous of order 1) through the network. For example, SiLU(x) = x*sigmoid(x), but when the nonlinear sigmoid(x) term is "frozen" for a specific input x^\*, the Jacobian computed numerically by torch autograd is linear in x and exactly reconstructs SiLU(x^\*).
+We strategically detach gradients from nonlinear operations (activation functions, normalization, softmax attention) to create locally linear paths (or paths that are at least homogeneous of order 1) through the network. For example, $SiLU(x) = x \cdot sigmoid(x)$, but when the nonlinear $sigmoid(x)$ term is "frozen" for a specific input $x^\*$, the Jacobian computed numerically by torch autograd is linear in $x$ and exactly reconstructs $SiLU(x^*)$.
 <p align="center">
   <img src="https://github.com/jamesgolden1/llms-are-llms/blob/main/images/jacobian_detached.png" width=45%/>
 </p>
-where J⁺ is the "detached Jacobian" that captures the full nonlinear computation as a linear system valid at input x*.
+
+where **J**$^+$ is the "detached Jacobian" that captures the full nonlinear computation as a linear system valid at input $x^\*$.
 
 ### Technical Approach
 
-**Normalization**: Detach variance computation from gradient path
-**Activations**: Freeze nonlinear terms in SwiGLU/GELU/Swish functions
-**Attention**: Detach softmax operation while preserving linear V multiplication
-**Analysis**: Apply SVD to understand learned representations and semantic emergence
+- **Normalization**: Detach variance computation from gradient path
+- **Activations**: Freeze nonlinear terms in $SwiGLU/GELU/Swish$ functions
+- **Attention**: Detach softmax operation while preserving linear $V$ multiplication
+- **Analysis**: Apply SVD to understand learned representations and semantic emergence
 
 ## Key Results
 ### Model Coverage
@@ -51,10 +52,10 @@ where J⁺ is the "detached Jacobian" that captures the full nonlinear computati
 
 ### Semantic Analysis
 
-**Low-rank structure**: Models operate in extremely low-dimensional subspaces
-**Concept emergence**: Semantic concepts appear in later transformer layers
-**Token relationships**: Singular vectors decode to semantically relevant input/output tokens
-**Steering applications**: Detached Jacobians enable efficient concept steering
+- **Low-rank structure**: Models operate in extremely low-dimensional subspaces
+- **Concept emergence**: Semantic concepts appear in later transformer layers
+- **Token relationships**: Singular vectors decode to semantically relevant input/output tokens
+- **Steering applications**: Detached Jacobians enable efficient concept steering
 
 ### Example: "The bridge out of Marin is the"
 Our analysis reveals:
@@ -79,9 +80,9 @@ cd llms-are-llms
 ## Applications
 **Interpretability**
 
-Concept Analysis: Understand what drives model predictions
-Layer Dynamics: Track semantic emergence through transformer layers
-Feature Importance: Identify key input tokens and concepts for next-token prediction
+- Concept Analysis: Understand what drives model predictions
+- Layer Dynamics: Track semantic emergence through transformer layers
+- Feature Importance: Identify key input tokens and concepts for next-token prediction
 
 <p align="center">
   <img src="https://github.com/jamesgolden1/llms-are-llms/blob/main/images/deepseek-R1-0528-qwen3-8b.png" width=100%/>
@@ -91,9 +92,9 @@ Fig 1: Results for Deepseek R1 0528 Qwen 3 8B.
 
 **Model Steering**
 
-Efficient Control: Steer model outputs using detached Jacobians
-Concept Injection: Inject specific concepts (e.g., "Golden Gate Bridge") into continuations
-Safety Applications: Detect and potentially mitigate bias or toxic content
+- Efficient Control: Steer model outputs using detached Jacobians
+- Concept Injection: Inject specific concepts (e.g., "Golden Gate Bridge") into continuations
+- Safety Applications: Detect and potentially mitigate bias or toxic content
 
 <p align="center">
   <img src="https://github.com/jamesgolden1/llms-are-llms/blob/main/images/steering.png" width=100%/>
@@ -103,9 +104,9 @@ Table 1: Steering results across models.
 
 **Research Tools**
 
-Dimensionality Analysis: Measure effective dimensionality of learned representations
-Cross-model Comparisons: Compare semantic structures across model families
-Ablation Studies: Understand component contributions to predictions
+- Dimensionality Analysis: Measure effective dimensionality of learned representations
+- Cross-model Comparisons: Compare semantic structures across model families
+- Ablation Studies: Understand token contributions to output token prediction
 
 ## Citation
 ```
