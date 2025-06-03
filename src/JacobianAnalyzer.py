@@ -12,6 +12,8 @@ from collections import defaultdict
 from sklearn.utils.extmath import randomized_svd
 import importlib
 
+from transformers.utils.import_utils import clear_import_cache
+
 import warnings
 warnings.filterwarnings("ignore", message="Glyph .* missing from current font\.")
 
@@ -64,6 +66,7 @@ class JacobianAnalyzer:
         backup_file = transformers_file+"models/llama/modeling_llama_original.py"
         shutil.copy(modeling_file, backup_file)
         shutil.copy(modeling_file_new, modeling_file) 
+        clear_import_cache()
         if 'transformers.models.llama.modeling_llama' in sys.modules:
             importlib.reload(sys.modules['transformers.models.llama.modeling_llama'])
 
