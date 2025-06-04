@@ -189,6 +189,7 @@ class JacobianAnalyzer:
             self.model = self.model_mm.language_model
             if callable(getattr(self.model_mm, 'generate')):
                 self.model.generate = self.model_mm.generate
+                self.model.language_model = self.model_mm.language_model
 
     def prepare_input(self, text):
         """
