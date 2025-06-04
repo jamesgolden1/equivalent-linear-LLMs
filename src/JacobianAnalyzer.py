@@ -225,22 +225,29 @@ class JacobianAnalyzer:
         self.model.eval()
 
         if hasattr(self, 'model_mm'):
-            self.model.language_model = self.model_mm.language_model
-
-        # Generate outputs with hidden states
-        self.outputs = self.model.generate(
-            **self.inputs,
-            max_new_tokens=max_new_tokens,
-            return_dict_in_generate=True,
-            output_scores=True,
-            past_key_values=None,
-            use_cache=True,
-            output_hidden_states=True,
-            temperature=temperature
-        )
-
-        if hasattr(self, 'model_mm'):
-            self.model.language_model = None
+            # Generate outputs with hidden states
+            self.outputs = self.model_mm.generate(
+                **self.inputs,
+                max_new_tokens=max_new_tokens,
+                return_dict_in_generate=True,
+                output_scores=True,
+                past_key_values=None,
+                use_cache=True,
+                output_hidden_states=True,
+                temperature=temperature
+            )
+        else:
+            # Generate outputs with hidden states
+            self.outputs = self.model.generate(
+                **self.inputs,
+                max_new_tokens=max_new_tokens,
+                return_dict_in_generate=True,
+                output_scores=True,
+                past_key_values=None,
+                use_cache=True,
+                output_hidden_states=True,
+                temperature=temperature
+            )
 
         self.output_token = self.tokenizer.decode(self.outputs['sequences'][-1][-1]).strip()
         # print("[", [self.tokenizer.decode(self.outputs['sequences'][ii]) for ii in range(len(self.outputs['sequences']))], "]")
