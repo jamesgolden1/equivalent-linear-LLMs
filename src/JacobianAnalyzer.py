@@ -226,7 +226,7 @@ class JacobianAnalyzer:
         if hasattr(self, 'model_mm'):
             # Generate outputs with hidden states
             self.outputs = self.model_mm.generate(
-                **self.inputs,
+                self.embeds,
                 max_new_tokens=max_new_tokens,
                 return_dict_in_generate=True,
                 output_scores=True,
