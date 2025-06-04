@@ -226,12 +226,12 @@ class JacobianAnalyzer:
         if hasattr(self, 'model_mm'):
             # Generate outputs with hidden states
             self.outputs = self.model_mm.generate(
-                self.embeds,
+                **self.inputs,
                 max_new_tokens=max_new_tokens,
                 return_dict_in_generate=True,
                 output_scores=True,
                 past_key_values=None,
-                use_cache=True,
+                use_cache=False,
                 output_hidden_states=True,
                 temperature=temperature
             )
