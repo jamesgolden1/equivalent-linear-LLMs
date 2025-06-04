@@ -10,6 +10,7 @@ def get_inputs():
     parser.add_argument("--model_name", help="Examples: llama-3.2-3b, gemma-3-4b, qwen-3-8b")
     parser.add_argument("--text", help="Input text sequence, model predicts next token and analyzes the detached Jacobian")
     parser.add_argument("--run_all", help="run all analysis scripts it true, takes a long time; if false, run a few quick ones")
+    parser.add_argument("--n_components", help="number of singular vectors to compute")
     parser.add_argument("--dtype", help="torch data type, can be bfloat16, float16 or float32")
     args = parser.parse_args()
 
@@ -78,11 +79,13 @@ def get_inputs():
     run_all = args.run_all
     if run_all is None:
         run_all = False
-    
-    return token, model_name, text, run_all, dtype
+
+    n_components = args. n_components
+
+    return token, model_name, text, run_all, dtype, n_components
 
 def main():
-    token, model_name, text, run_all, dtype = get_inputs()
+    token, model_name, text, run_all, dtype, n_components = get_inputs()
 
     from src.JacobianAnalyzer import JacobianAnalyzer as JacobianAnalyzer
 
