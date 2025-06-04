@@ -164,5 +164,7 @@ def main():
 
         analyzer.plot_dimensionality(layerwise=True,filename_png="fig6_dimensionality_layerwise")
 
+    return analyzer
+
 if __name__ == "__main__":
-    main()
+    analyzer = main()
