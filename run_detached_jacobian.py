@@ -39,6 +39,8 @@ def get_inputs():
 
         elif "gemma" in model_name and "4b" in model_name:
             model_name="google/gemma-3-4b-it"
+        elif "gemma" in model_name and "12b" in model_name:
+            model_name="google/gemma-3-12b-it"
         elif "gemma" in model_name and "27b" in model_name:
             model_name="unsloth/gemma-3-27b-it-bnb-4bit"
 
