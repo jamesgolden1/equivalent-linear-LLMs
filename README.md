@@ -69,31 +69,15 @@ Our analysis reveals:
 Huggingface token with model access required. The code below runs on a [free colab T4 instance](https://github.com/jamesgolden1/llms-are-llms/blob/main/notebooks/run_detached_jacobian.ipynb).
 ```
 import os
-import subprocess
-import sys
 from google.colab import userdata
 
-# Set environment variables
 os.environ["HF_HUB_ENABLE_HF_TRANSFER"] = '1'
 os.environ["HF_TOKEN"] = userdata.get('HF_TOKEN')
 
-# Clone the repository
-subprocess.run(['git', 'clone', 'https://github.com/jamesgolden1/llms-are-llms.git'], check=True)
-
-# Change to the repository directory
+os.system('git clone https://github.com/jamesgolden1/llms-are-llms.git')
 os.chdir('llms-are-llms')
-
-# Install requirements
-subprocess.run([sys.executable, '-m', 'pip', 'install', '-r', 'requirements.txt', '--no-deps'], check=True)
-
-
-# Run the script
-subprocess.run([
-    sys.executable, 'run_detached_jacobian.py', 
-    '--hf_token', os.environ["HF_TOKEN"],
-    '--model_name', 'llama-3.2-3b',
-    '--text', 'The Golden'
-], check=True)
+os.system('pip install -r requirements.txt --no-deps')
+os.system(f'python -u run_detached_jacobian.py --hf_token {os.environ["HF_TOKEN"]} --model_name "llama-3.2-3b" --text "The Golden"')
 ```
 **Note**: Occasionally the overwritten "modeling_*.py" files in transformers do not take effect immediately; if the output is not locally linear, restart and run again.
 
