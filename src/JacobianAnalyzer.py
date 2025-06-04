@@ -185,7 +185,10 @@ class JacobianAnalyzer:
 
         # Handle model-specific adjustments
         if "gemma" in self.model_name:
-            self.model = self.model.language_model
+            self.model_mm = self.model
+            self.model = self.model_mm.language_model
+            if "4.52" in transformers.__version__:
+                 self.model.generate = self.model_mm.language_model.generate
 
     def prepare_input(self, text):
         """
