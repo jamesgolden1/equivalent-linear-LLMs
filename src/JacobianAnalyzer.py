@@ -224,6 +224,9 @@ class JacobianAnalyzer:
         # Set model to evaluation mode
         self.model.eval()
 
+        if hasattr(self, 'model_mm')):
+            self.model.language_model = self.model_mm.language_model
+
         # Generate outputs with hidden states
         self.outputs = self.model.generate(
             **self.inputs,
@@ -235,6 +238,9 @@ class JacobianAnalyzer:
             output_hidden_states=True,
             temperature=temperature
         )
+
+        if hasattr(self, 'model_mm')):
+            self.model.language_model = None
 
         self.output_token = self.tokenizer.decode(self.outputs['sequences'][-1][-1]).strip()
         # print("[", [self.tokenizer.decode(self.outputs['sequences'][ii]) for ii in range(len(self.outputs['sequences']))], "]")
