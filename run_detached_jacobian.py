@@ -64,6 +64,8 @@ def get_inputs():
         else:
             model_name="meta-llama/Llama-3.2-3B-Instruct"
 
+    if isinstance(args.text, list):
+        args.text = ' '.join(args.text)
     text = args.text 
     if text is None:
         text = "The bridge out of Marin is the"
