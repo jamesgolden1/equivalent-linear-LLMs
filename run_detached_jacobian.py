@@ -53,12 +53,12 @@ def get_inputs():
         elif "phi" in model_name in model_name:
             model_name="microsoft/phi-4"
 
+        elif "deepseek" in model_name in model_name:
+            model_name="deepseek-ai/DeepSeek-R1-0528-Qwen3-8B"
         elif "qwen" in model_name and "32" in model_name:
             model_name="unsloth/Qwen3-32B-bnb-4bit"
         elif "qwen" in model_name and "8" in model_name:
             model_name="Qwen/Qwen3-8B"
-        elif "deepseek" in model_name and "8" in model_name:
-            model_name="deepseek-ai/DeepSeek-R1-0528-Qwen3-8B"
 
         elif "mistral" in model_name:
             model_name="mistralai/Ministral-8B-Instruct-2410"
