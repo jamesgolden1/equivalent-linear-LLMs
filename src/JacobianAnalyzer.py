@@ -1350,7 +1350,7 @@ class JacobianAnalyzer:
             for ui in range(num_tokens):
                 # Format the token interpretations nicely
                 v_tokens = v_input[ui][0]
-                v_text = ', '.join(v_tokens[:5]).replace("\n", "").lstrip()  # Show first 5 tokens
+                v_text = ', '.join(v_tokens[:5]).replace("\n", "").replace("/","").lstrip()  # Show first 5 tokens
 
                 if mode == "row_col_vectors":
                     ax.text(
