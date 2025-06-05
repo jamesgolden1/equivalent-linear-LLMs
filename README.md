@@ -24,7 +24,7 @@ We strategically detach gradients from nonlinear operations (activation function
   <img src="https://github.com/jamesgolden1/llms-are-llms/blob/main/images/jacobian_detached.png" width=45%/>
 </p>
 
-where **J**$^+$ is the "detached Jacobian" that captures the full nonlinear computation as a linear system valid at input $x^\*$.
+where the "detached Jacobian" **J**$^+(x^*)$ captures the full nonlinear computation as a linear system valid at input $x^\*$.
 
 ### Technical Approach
 
