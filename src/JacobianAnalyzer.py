@@ -1139,7 +1139,7 @@ class JacobianAnalyzer:
         ax.set_xlabel('Output Embedding')
         ax.set_ylabel('Sum (Jacobian_i·input_embedding_vector_i)')
         # ax.set_ylabel(r'$\sum\_{i=0}\^{k}$ $Jacobian\_i$ $\cdot$ input_embedding_$vector\_i$')
-        ax.legend(['Original Jacobian Reconstruction', 'Identity (locally linear)', 'Detached Jacobian Reconstruction'],'upper left')
+        ax.legend(['Original Jacobian Reconstruction', 'Identity (locally linear)', 'Detached Jacobian Reconstruction'])#,'upper left')
 
         # Add title with error information
         relative_error = np.std(outnplinear) / np.std(linear_out_np)  
