@@ -112,19 +112,11 @@ Table 1: Steering results across models.
 - Cross-model Comparisons: Compare semantic structures across model families
 - Ablation Studies: Understand token contributions to output token prediction
 
-## Citation
-```
-bibtex@article{golden2025llms,
-  title={Large Language Models are Locally Linear Mappings},
-  author={Golden, James R.},
-  journal={arXiv preprint},
-  year={2025}
-}
-```
-
 ## Code for a locally linear MLP
 
 This code snippet shows how the Qwen 3 MLP is made locally linear. the output is the same as the original function. Only the gradient at inference is changed.
+
+The detach() statement in the else clause makes the function linear.
 
 ```
 class Qwen3MLP(nn.Module):
@@ -144,6 +136,16 @@ class Qwen3MLP(nn.Module):
         else:
             down_proj = self.down_proj(self.act_fn(self.gate_proj(x)).clone().detach() * self.up_proj(x))
         return down_proj
+```
+
+## Citation
+```
+@article{golden2025llms,
+  title={Large Language Models are Locally Linear Mappings},
+  author={Golden, James R.},
+  journal={arXiv preprint},
+  year={2025}
+}
 ```
 
 ## License
