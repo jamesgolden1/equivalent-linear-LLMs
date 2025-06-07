@@ -122,8 +122,32 @@ bibtex@article{golden2025llms,
 }
 ```
 
+## Code for a locally linear MLP
+
+This code snippet shows how the Qwen 3 MLP is made locally linear. the output is the same as the original function. Only the gradient at inference is changed.
+
+```
+class Qwen3MLP(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.config = config
+        self.hidden_size = config.hidden_size
+        self.intermediate_size = config.intermediate_size
+        self.gate_proj = nn.Linear(self.hidden_size, self.intermediate_size, bias=False)
+        self.up_proj = nn.Linear(self.hidden_size, self.intermediate_size, bias=False)
+        self.down_proj = nn.Linear(self.intermediate_size, self.hidden_size, bias=False)
+        self.act_fn = ACT2FN[config.hidden_act]
+
+    def forward(self, x):
+        if self.training:
+            down_proj = self.down_proj(self.act_fn(self.gate_proj(x)) * self.up_proj(x))
+        else:
+            down_proj = self.down_proj(self.act_fn(self.gate_proj(x)).clone().detach() * self.up_proj(x))
+        return down_proj
+```
+
 ## License
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the Apache 2.0 License - see the LICENSE file for details.
 
 ## Acknowledgments
 This work builds on foundational research in:
