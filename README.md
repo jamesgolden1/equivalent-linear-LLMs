@@ -1,6 +1,6 @@
 # Large Language Models are Locally Linear Mappings
 
-**A novel approach to interpreting transformer decoder models with nearly-exact locally linear decompositions.**
+**A novel approach to interpreting transformer decoder models with nearly-exact locally linear reconstruction and decomposition.**
 
 https://arxiv.org/abs/2505.24293
 
