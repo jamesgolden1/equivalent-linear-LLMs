@@ -43,13 +43,13 @@ Fig. 1: The locally linear path through the $SwiGLU$ layer.
 ## Key Results
 ### Model Coverage
 
-- ✅ Qwen 3 (8B - 32B parameters)
-- ✅ Deepseek R1 0528 Qwen 3 (8B parameters)
-- ✅ Gemma 3 (4B - 12B - 27B parameters)
-- ✅ Llama 3 (3B - 8B - 70B parameters)
-- ✅ Phi 4 (3B - 14B parameters)
-- ✅ Mistral Ministral (8B parameters)
-- ✅ OLMo 2 (8B parameters)
+- Qwen 3 (8B - 32B parameters)
+- Deepseek R1 0528 Qwen 3 (8B parameters)
+- Gemma 3 (4B - 12B - 27B parameters)
+- Llama 3 (3B - 8B - 70B parameters)
+- Phi 4 (3B - 14B parameters)
+- Mistral Ministral (8B parameters)
+- OLMo 2 (8B parameters)
 
 ### Semantic Analysis
 
