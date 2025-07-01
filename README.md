@@ -114,7 +114,7 @@ Table 1: Steering results across models.
 
 ## Code for a locally linear MLP
 
-This code snippet shows how the Qwen 3 MLP is made locally linear. the output is the same as the original function. Only the gradient at inference is changed.
+This code snippet shows how the Qwen 3 MLP is made locally linear. The output is the same as the original function. Only the gradient at inference is changed.
 
 The detach() statement in the else clause makes the function linear.
 
