@@ -206,7 +206,7 @@ def _create_consistent_matrix_vector_functions(func, inputs, input_shape, output
         # Convert result to float32 for linear algebra if needed
         if needs_conversion:
             result = result.float()
-        return result
+        return result.detach().clone()
 
     def jacobian_transpose_vector_product(u):
         """J^T @ u using VJP - converts u to original dtype if needed"""
