@@ -1,4 +1,4 @@
-# Large Language Models are Locally Linear Mappings
+# Equivalent Linear Mappings of Large Language Models
 
 **A novel approach to interpreting transformer decoder models with nearly-exact locally linear reconstruction and decomposition.**
 
@@ -136,16 +136,6 @@ class Qwen3MLP(nn.Module):
         else:
             down_proj = self.down_proj(self.act_fn(self.gate_proj(x)).clone().detach() * self.up_proj(x))
         return down_proj
-```
-
-## Citation
-```
-@article{golden2025llms,
-  title={Large Language Models are Locally Linear Mappings},
-  author={Golden, James R.},
-  journal={arXiv preprint},
-  year={2025}
-}
 ```
 
 ## License
