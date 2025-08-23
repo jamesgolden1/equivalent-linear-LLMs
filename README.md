@@ -1,6 +1,6 @@
 # Equivalent Linear Mappings of Large Language Models
 
-**A novel approach to interpreting transformer decoder models with nearly-exact locally linear reconstruction and decomposition.**
+**A novel approach to interpreting transformer decoder models with equivalent linear reconstruction and decomposition.**
 
 https://arxiv.org/abs/2505.24293
 
@@ -12,14 +12,16 @@ We demonstrate that large language models can be mapped to nearly-exact equivale
 
 ### Why This Matters
 
-- **Near-Exact Reconstruction**: The detached Jacobian reconstructs with ~10⁻⁶ relative error and $R^{2}$ > 0.99999
+- **Near-Exact Reconstruction**: The detached Jacobian linearly reconstructs the output embedding, where the subsequent token probabilities pass torch.allclose at 1-14
 - **Interpretability**: Reveals semantic concepts emerging in model layers through the singular value decomposition
-- **Efficiency**: Enables analysis of up to 70B parameter models (Llama 3.3 Q4) without additional training
-- **Universality**: Works across model families (Qwen, Gemma, Llama, Phi, Mistral, OLMo)
+- **Efficiency**: Enables analysis of up to 14BBparameter models (Qwen 3 14B, Gemma 3 12 B, Llama 3.1 8B) passing torch.allclose at 1-14
+- **Universality**: Works across model families (Qwen 3, Gemma 3, Llama 3, Phi 4, Mistral Ministral, OLMo 2)
 
 ## How It Works
 ### The Linear Path
-We strategically detach gradients from nonlinear operations (activation functions, normalization, softmax attention) to create locally linear paths (or paths that are at least homogeneous of order 1) through the network. For example, $SiLU(x) = x \cdot sigmoid(x)$, but when the nonlinear $sigmoid(x)$ term is "frozen" for a specific input $x^\*$, the Jacobian computed numerically by torch autograd is linear in $x$ and exactly reconstructs $SiLU(x^*)$.
+Our approach exploits a fundamental structural property of transformer architectures wherein every operation (gated activations, attention, and normalization) can be expressed as $A(x) \cdot x$, where $A(x)$ represents an input-dependent coefficient matrix and $x$ preserves the linear pathway. To expose this linear structure, we strategically detach components of the gradient computation with respect to an input sequence, freezing the $A(x)$ terms at their values computed during inference. This ``detached’’ Jacobian of the model reconstructs the output with one linear operation per input token.  F
+
+or example, $SiLU(x) = x \cdot sigmoid(x)$, but when the nonlinear $sigmoid(x)$ term is "frozen" for a specific input $x^\*$, the Jacobian computed numerically by torch autograd is linear in $x$ and exactly reconstructs $SiLU(x^*)$.
 <p align="center">
   <img src="https://github.com/jamesgolden1/llms-are-llms/blob/main/images/jacobian_detached.png" width=45%/>
 </p>
@@ -38,7 +40,7 @@ where the "detached Jacobian" **J**$^+(x^*)$ captures the full nonlinear computa
   <img src="https://github.com/jamesgolden1/llms-are-llms/blob/main/images/fig1-llama-detached-swiglu.png" width=75%/>
 </p>
 
-Fig. 1: The locally linear path through the $SwiGLU$ layer.
+Fig. 1: The equivalent linear path through the $SwiGLU$ layer.
 
 ## Key Results
 ### Model Coverage
@@ -79,7 +81,6 @@ os.chdir('llms-are-llms')
 os.system('pip install -r requirements.txt --no-deps')
 os.system(f'python -u run_detached_jacobian.py --hf_token {os.environ["HF_TOKEN"]} --model_name "llama-3.2-3b" --text "The Golden"')
 ```
-**Note**: Occasionally the overwritten "modeling_*.py" files in transformers do not take effect immediately; if the output is not locally linear, restart and run again.
 
 ## Applications
 **Interpretability**
@@ -112,9 +113,9 @@ Table 1: Steering results across models.
 - Cross-model Comparisons: Compare semantic structures across model families
 - Ablation Studies: Understand token contributions to output token prediction
 
-## Code for a locally linear MLP
+## Detaching an MLP activation for an equivalent linear mapping
 
-This code snippet shows how the Qwen 3 MLP is made locally linear. The output is the same as the original function. Only the gradient at inference is changed.
+This code snippet shows how the Qwen 3 MLP has components frozen at inference to reveal its linear for a given input seequence. The output is the same as the original function. Only the gradient at inference is changed.
 
 The detach() statement in the else clause makes the function linear.
 
@@ -145,5 +146,5 @@ This project is licensed under the Apache 2.0 License - see the LICENSE file for
 This work builds on foundational research in:
 
 - Transformer interpretability (Elhage et al., 2021)
-- Locally linear neural networks (Mohan et al., 2019)
+- Locally linear ReLU neural networks (Mohan et al., 2019)
 - Diffusion model linearity (Kadkhodaie et al., 2023)
