@@ -12,9 +12,9 @@ We demonstrate that large language models can be mapped to nearly-exact equivale
 
 ### Why This Matters
 
-- **Near-Exact Reconstruction**: The detached Jacobian linearly reconstructs the output embedding, where the subsequent token probabilities pass torch.allclose at 1-14
+- **Near-Exact Reconstruction**: The detached Jacobian linearly reconstructs the output embedding, where the subsequent token probabilities pass torch.allclose at $10^{-14}$
 - **Interpretability**: Reveals semantic concepts emerging in model layers through the singular value decomposition
-- **Efficiency**: Enables analysis of up to 14BBparameter models (Qwen 3 14B, Gemma 3 12 B, Llama 3.1 8B) passing torch.allclose at 1-14
+- **Efficiency**: Enables analysis of up to 14B parameter models (Qwen 3 14B, Gemma 3 12 B, Llama 3.1 8B) passing torch.allclose at $10^{-14}$
 - **Universality**: Works across model families (Qwen 3, Gemma 3, Llama 3, Phi 4, Mistral Ministral, OLMo 2)
 
 ## How It Works
