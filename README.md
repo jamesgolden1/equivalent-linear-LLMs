@@ -8,11 +8,11 @@ https://arxiv.org/abs/2505.24293
 
 ## Key findings
 
-We demonstrate that large language models can be mapped to nearly-exact equivalent linear systems for any given input sequence, without modifying model weights or altering predictions. We achieve this through strategic gradient computation modifications that create "detached Jacobians", which are linear representations that capture the complete forward computation.
+We demonstrate that large language models can be mapped to equivalent linear systems for any given input sequence, without modifying model weights or altering predictions. We achieve this through strategic gradient computation modifications that create "detached Jacobians", which are linear representations that capture the complete forward computation.
 
 ### Why This Matters
 
-- **Near-Exact Reconstruction**: The detached Jacobian linearly reconstructs the output embedding, where the subsequent token probabilities pass torch.allclose at $10^{-14}$
+- **Reconstruction**: The detached Jacobian linearly reconstructs the output embedding, where the subsequent token probabilities pass torch.allclose at $10^{-14}$
 - **Interpretability**: Reveals semantic concepts emerging in model layers through the singular value decomposition
 - **Efficiency**: Enables analysis of up to 14B parameter models (Qwen 3 14B, Gemma 3 12 B, Llama 3.1 8B) passing torch.allclose at $10^{-14}$
 - **Universality**: Works across model families (Qwen 3, Gemma 3, Llama 3, Phi 4, Mistral Ministral, OLMo 2)
