@@ -113,6 +113,10 @@ Table 1: Steering results across models.
 - Cross-model Comparisons: Compare semantic structures across model families
 - Ablation Studies: Understand token contributions to output token prediction
 
+## Efficient computation of the detached Jacobian singular vectors for long input sequences
+
+[A Lanczos iteration approach for a matrix-free method](https://github.com/jamesgolden1/llms-are-llms/blob/main/notebooks/gemma_3/gemma_4B_jax_float32_lanczos_400_tokens_bfloat16.ipynb) to compute the top-k singular vectors of the detached Jacobian for long sequences in Jax for Gemma 3 4B without generating the full matrix, for a 400-token input sequence with 40GB VRAM. Using the [matfree](https://pnkraemer.github.io/matfree/) package.
+
 ## Detaching an MLP activation for an equivalent linear mapping
 
 This code snippet shows how the Qwen 3 MLP has components frozen at inference to reveal its linear for a given input seequence. The output is the same as the original function. Only the gradient at inference is changed.
