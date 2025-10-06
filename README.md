@@ -2,7 +2,7 @@
 
 **A novel approach to interpreting transformer decoder models with equivalent linear reconstruction and decomposition.**
 
-https://arxiv.org/abs/2505.24293
+[Open Review](https://openreview.net/forum?id=oDWbJsIuEp)
 
 **James R. Golden**
 
