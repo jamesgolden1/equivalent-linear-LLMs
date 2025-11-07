@@ -2,7 +2,8 @@
 
 **A novel approach to interpreting transformer decoder models with equivalent linear reconstruction and decomposition.**
 
-[Open Review](https://openreview.net/forum?id=oDWbJsIuEp)
+[Transactions on Machine Learning Research (TMLR)](https://openreview.net/forum?id=oDWbJsIuEp)
+NeurIPS Mechanistic Interpretability Workshop 2025
 
 **James R. Golden**
 
